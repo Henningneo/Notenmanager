@@ -165,6 +165,10 @@ tfoot td { font-weight: 700; border-bottom: none; }
 .field input:disabled, .field select:disabled { opacity: .45; cursor: not-allowed; }
 .btn svg { width: 16px; height: 16px; flex: none; }
 .card.editing { outline: 2px solid var(--accent); outline-offset: -1px; }
+.fc-start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.fc-bar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); border: 1px dashed var(--warn); }
+.fc-bar > div { display: flex; flex-direction: column; gap: 2px; }
+body.forecast #app { outline: 2px dashed var(--warn); outline-offset: 6px; border-radius: 12px; }
 .edit-note { font-size: .82rem; color: var(--accent); font-weight: 600; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin: 0; }
 .kv div { min-width: 0; }
@@ -374,6 +378,11 @@ function readLS(k) { try { return localStorage.getItem(k); } catch (e) { return 
 function writeLS(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function removeLS(k) { try { localStorage.removeItem(k); } catch (e) {} }
 let state = defaultState();
+// Prognosemodus: Spielwiese auf einer Kopie, echte Daten liegen solange in forecast.real und werden nicht verändert
+let forecast = null;
+function realState() { return forecast ? forecast.real : state; }
+function startForecast() { if (forecast || !session) return; ui.edit = null; ui.confirm = null; forecast = { real: state }; state = JSON.parse(JSON.stringify(state)); render(); toast("Prognosemodus aktiv: nichts wird gespeichert"); }
+function endForecast() { if (!forecast) return; state = forecast.real; forecast = null; ui.edit = null; ui.confirm = null; render(); toast("Zurück bei deinen echten Noten"); }
 // Noten aus der Zeit vor den Anmeldecodes (unverschlüsselt in diesem Browser), zum Übernehmen in ein Profil
 const LS_LEGACY_DONE = "notenmanager-legacy-imported";
 let legacy = (() => { try { if (readLS(LS_LEGACY_DONE)) return null; const s = JSON.parse(readLS(LS_KEY)); return s && !s.demo && Array.isArray(s.subjects) && s.subjects.length ? s : null; } catch (e) { return null; } })();
@@ -384,6 +393,7 @@ ui.confirm = null;
 function hjLabels() { return LABELS[state.settings.labels] || LABELS.g9; }
 function commit(opts) {
   if (!session) return;
+  if (forecast) { if (!opts || opts.render !== false) render(); return; }
   state.updatedAt = Date.now();
   saveLocal();
   scheduleRemote();
@@ -692,7 +702,9 @@ function render() {
   const tab = currentTab();
   document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
   const focusId = document.activeElement && document.activeElement.id;
-  app.innerHTML = tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : tab === "optionen" ? viewOptions() : tab === "admin" ? viewAdmin() : viewOverview();
+  document.body.classList.toggle("forecast", !!forecast);
+  app.innerHTML = (forecast ? '<div class="fc-bar"><div><b>Prognosemodus</b><span class="small">Probier Noten aus, so viel du willst. Nichts davon wird gespeichert.</span></div><button class="btn sm" data-action="forecast-end">Prognosemodus verlassen</button></div>' : "") +
+    (tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : tab === "optionen" ? viewOptions() : tab === "admin" ? viewAdmin() : viewOverview());
   if (focusId) { const el = document.getElementById(focusId); if (el && el.tagName !== "BUTTON") el.focus(); }
 }
 
@@ -710,7 +722,8 @@ function viewOverview() {
   const note = noteFromPoints(c.total);
   const progress = Math.min(100, (c.knownSlots / SLOTS_TOTAL) * 100);
   const final = c.knownSlots >= SLOTS_TOTAL && c.examsEntered === 5;
-  let h = '<section class="grid g-hero">';
+  let h = forecast ? "" : '<div class="fc-start"><span class="muted small">Was wäre, wenn? Im Prognosemodus kannst du Noten ausprobieren, ohne deine echten Daten zu ändern.</span><button class="btn sm" data-action="forecast-start">Prognosemodus starten</button></div>';
+  h += '<section class="grid g-hero">';
   h += '<div class="card hero"><span class="label">' + (final ? "Abiturdurchschnitt" : "Hochgerechneter Abischnitt") + "</span>" +
     '<div class="schnitt num">' + (note != null ? fmt(note, 1) : (c.total != null ? "n. b." : "–")) + "</div>" +
     '<div class="meta num">' + (c.total != null ? fmt(c.total) + " von 900 Punkten" : "Noch keine Noten eingetragen") +
@@ -938,9 +951,8 @@ function viewSubject(s, c, L) {
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + '></label>' +
     '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
     '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional"></label>' +
-    '<label class="check"><input type="checkbox" id="g-plan"> Prognose</label>' +
     '<button class="btn primary" type="submit">Note eintragen</button></form>' +
-    '<p class="muted small" style="margin:10px 0 0">„Prognose“ markiert eine erwartete Note für Was-wäre-wenn-Rechnungen. Ob Prognosen mitzählen, stellst du unter Optionen ein.</p></div>';
+    '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
   // Halbjahre
   for (let i = 0; i < 4; i++) {
     if (!s.hj[i]) continue;
@@ -962,7 +974,7 @@ function viewSubject(s, c, L) {
       const cat = CATS[g.cat] || CATS.sonstige;
       return '<div class="grade">' + chip(g.points, g.plan ? "plan" : "") + '<div class="t"><b>' + cat.label + (g.plan ? " · Prognose" : "") + (cat.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
         (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
-        '<div class="actions"><button class="btn ghost sm" data-action="toggle-plan" data-id="' + s.id + '" data-g="' + g.id + '" title="Prognose umschalten">' + (g.plan ? "Echt" : "Prognose") + "</button>" +
+        '<div class="actions">' + (g.plan ? '<button class="btn ghost sm" data-action="toggle-plan" data-id="' + s.id + '" data-g="' + g.id + '" title="Alte Prognose-Note als echte Note übernehmen">Echt</button>' : "") +
         '<button class="btn ghost sm danger" data-action="del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
     }).join("") : '<div class="muted small">Trag oben deine erste Note für ' + L[i] + " ein.</div>") + "</div>";
     // Bedarf
@@ -1085,7 +1097,7 @@ function viewOptions() {
         "<div><dt>Kunst/Musik als Leistungsfach</dt><dd>" + (state.settings.kumuLf ? "an meiner Schule angeboten" : "nicht angeboten (nur Kolloquium)") + "</dd></div></dl>") + "</section>";
   h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
     '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="o-cur" data-opt="currentHj">' + L.map((l, i) => '<option value="' + i + '"' + (state.settings.currentHj === i ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label></div>" +
-    '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>" +
+    (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
     '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
     '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
     '<div class="card"><div class="card-head"><h2>Daten</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
@@ -1231,10 +1243,13 @@ document.addEventListener("click", e => {
     case "admin-auth-logout": adminSignOut().then(() => { render(); toast("Admin abgemeldet"); }); return;
     case "import-legacy": {
       if (!legacy) return;
+      if (forecast) { toast("Verlasse zuerst den Prognosemodus."); return; }
       state = migrate(JSON.parse(JSON.stringify(legacy)));
       legacy = null; writeLS(LS_LEGACY_DONE, "1");
       commit(); toast("Bisherige Noten übernommen"); return;
     }
+    case "forecast-start": startForecast(); return;
+    case "forecast-end": endForecast(); return;
     case "export": doExport(); return;
     case "copy": doCopy(); return;
     case "import": doImport(); return;
@@ -1248,7 +1263,7 @@ document.addEventListener("submit", e => {
   const w = parseFloat(document.getElementById("g-w").value);
   s.grades.push({ id: uid(), hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
     weight: CATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("g-date").value || "",
-    note: document.getElementById("g-note").value.trim(), plan: document.getElementById("g-plan").checked });
+    note: document.getElementById("g-note").value.trim(), plan: false });
   ui.lastCat = cat;
   commit(); toast("Note eingetragen");
 });
@@ -1277,7 +1292,7 @@ document.addEventListener("change", e => {
 });
 window.addEventListener("hashchange", () => { ui.confirm = null; render(); window.scrollTo(0, 0); });
 
-function backupJson() { return JSON.stringify(state, null, 2); }
+function backupJson() { return JSON.stringify(realState(), null, 2); }
 async function doExport() {
   const name = "notenmanager-backup-" + new Date().toISOString().slice(0, 10) + ".json";
   try {
@@ -1294,6 +1309,7 @@ function doCopy() {
 function doImport() {
   const f = document.getElementById("import-file").files[0];
   const apply = txt => {
+    if (forecast) { toast("Verlasse zuerst den Prognosemodus."); return; }
     try { const s = JSON.parse(txt); if (!s || !Array.isArray(s.subjects)) throw new Error(); state = migrate(s); commit(); toast("Backup importiert: " + state.subjects.length + " Fächer"); }
     catch (err) { toast("Das ist kein gültiges Backup. Erwartet wird die JSON-Datei aus „Backup herunterladen“."); }
   };
@@ -1504,7 +1520,7 @@ function logout() {
   docRef = null; session = null; serverSeen = false; noWrite = false;
   removeLS(LS_SESSION);
   if (fbUser) adminSignOut();
-  state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null; ui.loginError = "";
+  forecast = null; state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null; ui.loginError = "";
   ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null;
   if (location.hash) location.hash = "";
   updateHeader(); render();
@@ -1624,12 +1640,12 @@ let localChain = Promise.resolve(), dbP = null;
 const SYNC_TEXT = { local: "Nur auf diesem Gerät", connecting: "Verbinde …", synced: "Auf allen Geräten gespeichert", saving: "Speichert …", offline: "Keine Verbindung – lokal gespeichert", error: "Sync-Fehler – lokal gespeichert", readonly: "Nur auf diesem Gerät gespeichert" };
 function saveLocal() {
   const my = session; if (!my) return;
-  const st = JSON.parse(JSON.stringify(state));
+  const st = JSON.parse(JSON.stringify(realState()));
   localChain = localChain.then(async () => { try { writeLS(LS_PREFIX + my.docId, JSON.stringify(await encryptObj(my.key, st))); } catch (e) {} });
 }
 async function openProfile() {
   const my = session;
-  state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null;
+  forecast = null; state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null;
   try { const raw = readLS(LS_PREFIX + my.docId); if (raw) state = migrate(await decryptObj(my.key, JSON.parse(raw))); } catch (e) {}
   if (session !== my) return;
   setSync("local"); updateHeader(); render();
@@ -1647,19 +1663,22 @@ async function connectSync(my) {
     const mig = !snap.exists && !snap.metadata.fromCache ? MIGRATION_DOCS[my.docId] || null : null;
     const data = snap.exists ? snap.data() : mig;
     const remoteAt = data && typeof data.updatedAt === "number" ? data.updatedAt : 0;
-    if (data && data.ct && remoteAt > (state.updatedAt || 0)) {
+    if (data && data.ct && remoteAt > (realState().updatedAt || 0)) {
       try {
         const s = await decryptObj(my.key, data);
         if (session !== my) return;
-        state = migrate(s);
-        ui.edit = null; // auf einem anderen Gerät geändert: Bearbeitung hier beenden
-        saveLocal(); render();
+        if (forecast) { forecast.real = migrate(s); saveLocal(); toast("Deine echten Noten wurden auf einem anderen Gerät geändert"); }
+        else {
+          state = migrate(s);
+          ui.edit = null; // auf einem anderen Gerät geändert: Bearbeitung hier beenden
+          saveLocal(); render();
+        }
       } catch (e) {}
     }
     if (!snap.metadata.fromCache) {
       clearTimeout(snapTimer);
       const first = !serverSeen; serverSeen = true;
-      if (mig || (first && (state.updatedAt || 0) > remoteAt)) flush(); else if (!writing && !noWrite) setSync("synced");
+      if (mig || (first && (realState().updatedAt || 0) > remoteAt)) flush(); else if (!writing && !noWrite) setSync("synced");
     }
   }, err => { clearTimeout(snapTimer); if (session === my) setSync("error"); });
 }
@@ -1680,7 +1699,7 @@ function scheduleRemote() {
   remoteTimer = setTimeout(() => { remoteTimer = null; flush(); }, 700);
 }
 async function flush() {
-  const ref = docRef, my = session, st = state;
+  const ref = docRef, my = session, st = realState();
   if (!ref || !my || !serverSeen || noWrite) return;
   if (writing) { again = true; return; }
   writing = true; setSync("saving");
