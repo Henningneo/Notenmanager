@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Profile: Die Dokument-ID ist eine Prüfsumme des Anmeldecodes, der Inhalt ist verschlüsselt.
+    // Wer den Code kennt, kennt die ID. Auflisten aller Profile ist nicht erlaubt.
+    match /nm/{docId} {
+      allow get, delete: if docId.matches('^[0-9a-f]{40}$');
+      allow create, update: if docId.matches('^[0-9a-f]{40}$')
+        && request.resource.data.keys().hasOnly(['v', 'updatedAt', 'iv', 'ct'])
+        && request.resource.data.updatedAt is number
+        && request.resource.data.iv is string && request.resource.data.iv.size() < 64
+        && request.resource.data.ct is string && request.resource.data.ct.size() < 900000;
+    }
+    // Codeliste: lesen darf jeder (nur Prüfsummen und Verschlüsseltes), ändern nur das Admin-Konto.
+    match /nm-codes/{docId} {
+      allow get: if docId == 'list';
+      allow write: if docId == 'list' && request.auth != null && request.auth.uid == 'HUMTWpEcbbWUmrXqmum1bv3JPRK2';
+    }
+  }
+}

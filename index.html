@@ -1,0 +1,1666 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Notenmanager Oberstufe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: Kopfleiste mit Rauten-Marke + Tabs, darunter eine Spalte (max 1180px); Übersicht = Kennzahlen → Halbjahre → Einbringungsmatrix → Zulassung */
+:root {
+  --bg: #f3f6fb;
+  --surface: #ffffff;
+  --surface-2: #eaf0f8;
+  --fg: #13203a;
+  --muted: #5a6782;
+  --line: #d6deeb;
+  --accent: #1a5cb0;
+  --accent-fg: #ffffff;
+  --accent-soft: #e1ecfb;
+  --good: #19804a;
+  --good-soft: #def3e6;
+  --warn: #a86a0c;
+  --warn-soft: #fbefd9;
+  --bad: #bd3a24;
+  --bad-soft: #fbe3de;
+  --shadow: 0 1px 2px rgba(19, 32, 58, .06), 0 4px 16px rgba(19, 32, 58, .05);
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1320; --surface: #141c2b; --surface-2: #1b2538; --fg: #e5ebf5; --muted: #98a5bb;
+    --line: #29344b; --accent: #6aa5ff; --accent-fg: #0b1424; --accent-soft: #1a2b48;
+    --good: #4cc387; --good-soft: #15301f; --warn: #e3b458; --warn-soft: #36290f;
+    --bad: #f27c66; --bad-soft: #3a1c16; --shadow: 0 1px 2px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1320; --surface: #141c2b; --surface-2: #1b2538; --fg: #e5ebf5; --muted: #98a5bb;
+  --line: #29344b; --accent: #6aa5ff; --accent-fg: #0b1424; --accent-soft: #1a2b48;
+  --good: #4cc387; --good-soft: #15301f; --warn: #e3b458; --warn-soft: #36290f;
+  --bad: #f27c66; --bad-soft: #3a1c16; --shadow: 0 1px 2px rgba(0,0,0,.3);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h2 { font-size: 1.25rem; font-weight: 700; }
+h3 { font-size: 1.02rem; font-weight: 700; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--muted); }
+
+/* Kopf */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top-row { display: flex; align-items: center; gap: 12px; padding-block: 12px 8px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.raute { width: 30px; height: 30px; border-radius: 7px; flex: none;
+  background: conic-gradient(from 45deg, var(--accent) 0 25%, var(--surface) 0 50%, var(--accent) 0 75%, var(--surface) 0) 0 0 / 10px 10px;
+  border: 1px solid var(--accent); }
+.brand h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; }
+.brand .sub { font-size: .78rem; color: var(--muted); }
+.sync { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); padding: 4px 10px; border-radius: 999px; background: var(--surface-2); }
+.sync .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.sync[data-s="synced"] .dot { background: var(--good); }
+.sync[data-s="saving"] .dot, .sync[data-s="connecting"] .dot { background: var(--warn); }
+.sync[data-s="error"] .dot, .sync[data-s="offline"] .dot { background: var(--bad); }
+nav.tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+nav.tabs a { padding: 9px 14px 10px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: .92rem; border-bottom: 2.5px solid transparent; white-space: nowrap; }
+nav.tabs a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
+
+main { padding-block: 22px 60px; display: grid; gap: 22px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.grid { display: grid; gap: 16px; }
+.g-hero { grid-template-columns: minmax(0, 1.25fr) minmax(0, 2fr); }
+.g-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .g-hero { grid-template-columns: 1fr; } .g-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .g-2 { grid-template-columns: 1fr; } }
+@media (max-width: 420px) { .g-4 { grid-template-columns: 1fr; } }
+
+/* Abischnitt */
+.hero { display: flex; flex-direction: column; gap: 10px; background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.hero .label { color: inherit; opacity: .8; }
+.schnitt { font-family: var(--font-display); font-weight: 800; font-size: clamp(3.4rem, 9vw, 4.8rem); line-height: 1; letter-spacing: -.03em; }
+.hero .meta { font-size: .9rem; opacity: .9; }
+.bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, currentColor 22%, transparent); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: currentColor; border-radius: inherit; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.stat .v { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; line-height: 1.1; }
+.stat .v small { font-size: .9rem; font-weight: 600; color: var(--muted); }
+@media (max-width: 420px) { .stats { grid-template-columns: 1fr; } }
+
+/* Halbjahr-Karten */
+.hj { display: grid; gap: 8px; }
+.hj.current { outline: 2px solid var(--accent); outline-offset: -1px; }
+.hj .big { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; line-height: 1; }
+.hj-row { display: flex; justify-content: space-between; gap: 8px; font-size: .88rem; }
+
+/* Punkte-Chips */
+.pt { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1em; height: 1.9em; padding: 0 .45em; border-radius: 6px; font-weight: 700; font-variant-numeric: tabular-nums; font-size: .9rem; background: var(--surface-2); color: var(--fg); border: 1.5px solid transparent; }
+.pt.b5 { background: var(--good-soft); color: var(--good); }
+.pt.b4 { background: var(--accent-soft); color: var(--accent); }
+.pt.b2 { background: var(--warn-soft); color: var(--warn); }
+.pt.b1 { background: var(--bad-soft); color: var(--bad); }
+.pt.out { background: transparent; border: 1.5px dashed var(--line); color: var(--muted); font-weight: 600; }
+.pt.plan { border-style: dashed; border-color: currentColor; }
+.pt.raw { font-weight: 600; }
+
+/* Tabelle */
+.tbl-wrap { overflow-x: auto; margin: 0 -4px; }
+table { border-collapse: collapse; width: 100%; min-width: 520px; }
+th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+td.c, th.c { text-align: center; }
+td.r, th.r { text-align: right; }
+tfoot td { font-weight: 700; border-bottom: none; }
+.subj-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--muted); margin-top: 12px; align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Badges */
+.badge { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.badge.lf { background: var(--accent); color: var(--accent-fg); }
+.badge.abi { background: var(--accent-soft); color: var(--accent); }
+#profile { text-transform: none; letter-spacing: 0; font-size: .82rem; padding: 4px 10px; border-radius: 999px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+
+/* Checks */
+.checks { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
+.checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.checks li:last-child { border-bottom: none; }
+.ico { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; margin-top: 1px; }
+.ico.ok { background: var(--good-soft); color: var(--good); }
+.ico.warn { background: var(--bad-soft); color: var(--bad); }
+.ico.open { background: var(--surface-2); color: var(--muted); }
+
+/* Formulare & Buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 600; font-size: .9rem; text-decoration: none; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.btn.danger.solid { background: var(--bad); color: #fff; border-color: var(--bad); }
+.btn.ghost { border-color: transparent; background: transparent; padding: 6px 8px; }
+.btn.sm { padding: 5px 10px; font-size: .82rem; }
+.btn:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.card.editing { outline: 2px solid var(--accent); outline-offset: -1px; }
+.edit-note { font-size: .82rem; color: var(--accent); font-weight: 600; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin: 0; }
+.kv div { min-width: 0; }
+.kv dt { font-size: .75rem; font-weight: 600; color: var(--muted); }
+.kv dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field > span { font-size: .78rem; font-weight: 600; color: var(--muted); }
+input[type="text"], input[type="number"], input[type="date"], select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+textarea { min-height: 120px; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; cursor: pointer; }
+.check input { width: 17px; height: 17px; accent-color: var(--accent); }
+.form-row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); align-items: end; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Fächer */
+.subj-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { .subj-layout { grid-template-columns: 1fr; } }
+.subj-list { display: grid; gap: 6px; padding: 10px; }
+.subj-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; background: none; text-align: left; cursor: pointer; width: 100%; }
+.subj-item:hover { background: var(--surface-2); }
+.subj-item[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.subj-item .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini { display: flex; gap: 3px; }
+.mini .pt { min-width: 1.75em; height: 1.6em; font-size: .75rem; }
+.hjblock { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; }
+.hjblock-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.formula { font-size: .83rem; color: var(--muted); }
+.grades { display: grid; gap: 6px; }
+.grade { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+.grade .t { min-width: 0; }
+.grade .t b { font-weight: 600; font-size: .9rem; }
+.grade .t div { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+.need { font-size: .82rem; background: var(--accent-soft); color: var(--fg); padding: 8px 10px; border-radius: 8px; }
+details.settings > summary { cursor: pointer; font-weight: 600; font-size: .9rem; color: var(--accent); list-style: none; }
+details.settings > summary::-webkit-details-marker { display: none; }
+details.settings[open] > summary { margin-bottom: 12px; }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.tpl-grid label { padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.tpl-grid label.has { opacity: .5; }
+.empty { text-align: center; padding: 40px 20px; display: grid; gap: 12px; justify-items: center; }
+.empty p { max-width: 52ch; margin: 0; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: .9rem; z-index: 20; max-width: calc(100% - 32px); }
+.prose { max-width: 70ch; }
+.prose p, .prose li { margin: 0 0 8px; }
+.prose ul { padding-left: 20px; margin: 0 0 10px; }
+.prose a { color: var(--accent); }
+.ptable { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.ptable div { text-align: center; padding: 6px 0; border-radius: 6px; background: var(--surface-2); font-size: .82rem; }
+.ptable b { display: block; font-size: 1rem; }
+@media (max-width: 520px) { .ptable { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="top-row">
+      <div class="brand">
+        <div class="raute" aria-hidden="true"></div>
+        <div>
+          <h1>Notenmanager Oberstufe</h1>
+          <div class="sub">Bayern · Qualifikationsphase · 0–15 Punkte</div>
+        </div>
+      </div>
+      <div class="sync" id="sync" data-s="local" hidden><span class="dot"></span><span id="sync-text">Lokal gespeichert</span></div>
+      <span class="badge abi" id="profile" hidden></span>
+      <button class="btn sm" id="logout" data-action="logout" hidden>Abmelden</button>
+    </div>
+    <nav class="tabs" aria-label="Bereiche">
+      <a href="#uebersicht" data-tab="uebersicht">Übersicht</a>
+      <a href="#faecher" data-tab="faecher">Fächer &amp; Noten</a>
+      <a href="#abitur" data-tab="abitur">Abitur</a>
+      <a href="#optionen" data-tab="optionen">Optionen</a>
+      <a href="#admin" data-tab="admin" id="tab-admin" hidden>Admin</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap" id="app"></main>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+/* ================= Konstanten ================= */
+const CATS = {
+  sa:        { label: "Schulaufgabe", group: "gross" },
+  klausur:   { label: "Klausur", group: "gross" },
+  ex:        { label: "Stegreifaufgabe (Ex)", group: "klein" },
+  abfrage:   { label: "Abfrage", group: "klein" },
+  kurzarbeit:{ label: "Kurzarbeit", group: "klein" },
+  referat:   { label: "Referat", group: "klein" },
+  muendlich: { label: "Mündliche Note", group: "klein" },
+  sonstige:  { label: "Sonstiger kleiner LN", group: "klein" },
+  praktisch: { label: "Praxis / Projekt", group: "praktisch" }
+};
+const NOTE = ["6","5-","5","5+","4-","4","4+","3-","3","3+","2-","2","2+","1-","1","1+"];
+const LABELS = { g9: ["12/1","12/2","13/1","13/2"], g8: ["11/1","11/2","12/1","12/2"] };
+const SLOTS_TOTAL = 40;       // eingebrachte Halbjahresleistungen inkl. Seminararbeit
+const SLOTS_SEMINAR = 2;      // Seminararbeit zählt wie 2 Halbjahresleistungen
+
+// Fachgruppen für die Wahl der Abiturfächer (§ 48 GSO, § 19 Abs. 1 GSO, Anlage 3)
+// field: Aufgabenfeld (slk = sprachl.-lit.-künstl., gpr = gesellschaftswiss., mint = math.-naturwiss.-techn.)
+const GROUPS = {
+  deutsch:  { label: "Deutsch", field: "slk", abi: true, lf: false },
+  mathe:    { label: "Mathematik", field: "mint", abi: true, lf: false },
+  fs:       { label: "Fortgeführte Fremdsprache", field: "slk", abi: true, lf: true },
+  fs_spaet: { label: "Spät beginnende Fremdsprache (nur mündlich)", field: "slk", abi: true, lf: false, oral: true },
+  nw:       { label: "Naturwissenschaft (Biologie, Chemie, Physik)", field: "mint", abi: true, lf: true },
+  inf:      { label: "Informatik", field: "mint", abi: true, lf: true },
+  inf_spaet:{ label: "Spät beginnende Informatik (nur mündlich)", field: "mint", abi: true, lf: false, oral: true },
+  gpr:      { label: "Gesellschaftswiss. Fach (Religion/Ethik, Geschichte, PuG, Geographie, WR)", field: "gpr", abi: true, lf: true },
+  kumu:     { label: "Kunst oder Musik", field: "slk", abi: true, lf: true },
+  sport:    { label: "Sport (nur als Leistungsfach)", field: null, abi: true, lf: true, lfOnly: true },
+  seminar:  { label: "W-Seminar", field: null, abi: false, lf: false },
+  vk:       { label: "Vertiefungskurs Deutsch/Mathematik (nur 12/1–12/2)", field: null, abi: false, lf: false },
+  none:     { label: "Zusatzangebot / Profilfach (kein Abiturfach, höchstens 3 HJL)", field: null, abi: false, lf: false }
+};
+const FIELDS = { slk: "sprachlich-literarisch-künstlerisch", gpr: "gesellschaftswissenschaftlich", mint: "mathematisch-naturwissenschaftlich-technisch" };
+
+// Fachvorlagen (Pflichtbelegung laut Stundentafel G9); g = Fachgruppe. Pflichteinbringungen werden automatisch berechnet.
+const Q12 = [true, true, false, false];
+const TEMPLATES = [
+  { name: "Deutsch", short: "D", core: true, g: "deutsch" },
+  { name: "Mathematik", short: "M", core: true, g: "mathe" },
+  { name: "Englisch", short: "E", g: "fs" },
+  { name: "Französisch", short: "F", g: "fs" },
+  { name: "Latein", short: "L", g: "fs" },
+  { name: "Spanisch (spät beginnend)", short: "Sp", g: "fs_spaet" },
+  { name: "Spanisch", short: "Sp", g: "fs" },
+  { name: "Italienisch", short: "It", g: "fs" },
+  { name: "Griechisch", short: "Gr", g: "fs" },
+  { name: "Katholische Religionslehre", short: "K", g: "gpr" },
+  { name: "Evangelische Religionslehre", short: "Ev", g: "gpr" },
+  { name: "Ethik", short: "Eth", g: "gpr" },
+  { name: "Geschichte", short: "G", g: "gpr" },
+  { name: "Politik und Gesellschaft", short: "PuG", g: "gpr", hj: Q12 },
+  { name: "Geographie", short: "Geo", g: "gpr", hj: Q12 },
+  { name: "Wirtschaft und Recht", short: "WR", g: "gpr", hj: Q12 },
+  { name: "Biologie", short: "B", g: "nw" },
+  { name: "Chemie", short: "C", g: "nw" },
+  { name: "Physik", short: "Ph", g: "nw" },
+  { name: "Informatik", short: "Inf", g: "inf" },
+  { name: "Informatik (spät beginnend)", short: "Inf", g: "inf_spaet" },
+  { name: "Kunst", short: "Ku", g: "kumu" },
+  { name: "Musik", short: "Mu", g: "kumu" },
+  { name: "Sport", short: "Spo", type: "sport", g: "sport" },
+  { name: "W-Seminar", short: "W", type: "wseminar", hj: Q12, g: "seminar" },
+  { name: "Vertiefungskurs Deutsch", short: "VK D", hj: Q12, g: "vk", vkFor: "D" },
+  { name: "Vertiefungskurs Mathematik", short: "VK M", hj: Q12, g: "vk", vkFor: "M" },
+  { name: "Theater und Film", short: "TuF", g: "none" },
+  { name: "Biologisch-chemisches Praktikum", short: "BCP", hj: Q12, g: "none" },
+  { name: "Psychologie", short: "Psy", g: "none" },
+  { name: "Philosophie", short: "Phil", g: "none" }
+];
+
+/* ================= Zustand ================= */
+const LS_KEY = "notenmanager-oberstufe-v1";
+const LS_UI = "notenmanager-ui-v1";
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+function defaultState() {
+  return {
+    v: 1, updatedAt: 0,
+    settings: { labels: "g9", currentHj: 0, includePlan: true, streichung: false, subst: "none", kumuLf: false },
+    subjects: [],
+    seminar: { arbeit: null, praes: null },
+    exams: [
+      { subjectId: null, points: null, zusatz: null, art: "schriftlich" },
+      { subjectId: null, points: null, zusatz: null, art: "schriftlich" },
+      { subjectId: null, points: null, zusatz: null, art: "schriftlich" },
+      { subjectId: null, points: null, zusatz: null, art: "mündlich" },
+      { subjectId: null, points: null, zusatz: null, art: "mündlich" }
+    ]
+  };
+}
+function migrate(s) {
+  const d = defaultState();
+  if (!s || typeof s !== "object") return d;
+  // Alte Beispieldaten verwerfen (Einstellungen bleiben)
+  if (s.demo) { d.settings = Object.assign(d.settings, s.settings || {}); d.updatedAt = Date.now(); return d; }
+  const out = Object.assign(d, s);
+  out.settings = Object.assign(defaultState().settings, s.settings || {});
+  out.seminar = Object.assign({ arbeit: null, praes: null }, s.seminar || {});
+  out.subjects = Array.isArray(s.subjects) ? s.subjects.map(fixSubject) : [];
+  out.exams = Array.isArray(s.exams) && s.exams.length === 5 ? s.exams.map(e => Object.assign({ subjectId: null, points: null, zusatz: null, art: "schriftlich" }, e)) : d.exams;
+  return out;
+}
+function fixSubject(x) {
+  const o = fixSubjectRaw(x);
+  // Deutsch und Mathematik sind immer Leistungsfächer (schriftliches Abitur, alle HJL Pflicht)
+  if (/^deutsch$/i.test(o.name.trim())) { o.core = true; o.lf = true; o.group = "deutsch"; }
+  if (/^mathematik$/i.test(o.name.trim())) { o.core = true; o.lf = true; o.group = "mathe"; }
+  if (!GROUPS[o.group]) { const t = TEMPLATES.find(t => t.name.toLowerCase() === o.name.trim().toLowerCase()); o.group = t ? t.g : "none"; }
+  if (o.type === "wseminar") o.group = "seminar";
+  if (o.group === "vk" && !o.vkFor) o.vkFor = /deutsch/i.test(o.name) ? "D" : "M";
+  return o;
+}
+function fixSubjectRaw(x) {
+  return Object.assign({ id: uid(), name: "Fach", short: "", type: "standard", lf: false, core: false, pOv: null, maxOv: null, vkFor: null, vkPartner: null,
+    hj: [true, true, true, true], override: [null, null, null, null], grades: [] }, x,
+    { hj: Array.isArray(x.hj) && x.hj.length === 4 ? x.hj.slice() : [true, true, true, true],
+      override: Array.isArray(x.override) && x.override.length === 4 ? x.override.slice() : [null, null, null, null],
+      grades: Array.isArray(x.grades) ? x.grades.slice() : [] });
+}
+function readLS(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function writeLS(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function removeLS(k) { try { localStorage.removeItem(k); } catch (e) {} }
+let state = defaultState();
+// Noten aus der Zeit vor den Anmeldecodes (unverschlüsselt in diesem Browser), zum Übernehmen in ein Profil
+const LS_LEGACY_DONE = "notenmanager-legacy-imported";
+let legacy = (() => { try { if (readLS(LS_LEGACY_DONE)) return null; const s = JSON.parse(readLS(LS_KEY)); return s && !s.demo && Array.isArray(s.subjects) && s.subjects.length ? s : null; } catch (e) { return null; } })();
+let session = null; // { nr, docId, key } – das angemeldete Profil
+let ui = Object.assign({ selected: null, showAdd: false, confirm: null }, (() => { try { return JSON.parse(readLS(LS_UI)) || {}; } catch (e) { return {}; } })());
+ui.confirm = null;
+
+function hjLabels() { return LABELS[state.settings.labels] || LABELS.g9; }
+function commit(opts) {
+  if (!session) return;
+  state.updatedAt = Date.now();
+  saveLocal();
+  scheduleRemote();
+  if (!opts || opts.render !== false) render();
+}
+function saveUi() { writeLS(LS_UI, JSON.stringify({ selected: ui.selected })); }
+
+/* ================= Rechenkern ================= */
+function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null; }
+function wavg(list) {
+  let s = 0, w = 0;
+  for (const g of list) { const gw = g.weight > 0 ? g.weight : 1; s += g.points * gw; w += gw; }
+  return w ? s / w : null;
+}
+// § 29 Abs. 2 GSO: gerundet, aber keine Aufrundung auf 1 Punkt
+function roundPts(raw) {
+  if (raw == null) return null;
+  let r = Math.floor(raw + 0.5 + 1e-9);
+  if (r === 1 && raw < 1) r = 0;
+  return Math.max(0, Math.min(15, r));
+}
+function gradesFor(s, h) {
+  return s.grades.filter(g => g.hj === h && (state.settings.includePlan || !g.plan) && typeof g.points === "number");
+}
+function hjl(s, h) {
+  if (!s.hj[h]) return null;
+  const gs = gradesFor(s, h);
+  const by = grp => gs.filter(g => (CATS[g.cat] || CATS.sonstige).group === grp);
+  const gross = avg(by("gross").map(g => g.points));
+  const klein = wavg(by("klein"));
+  const prak = avg(by("praktisch").map(g => g.points));
+  const hasPlan = gs.some(g => g.plan);
+  let raw = null, formula = "";
+  if (s.override[h] != null) {
+    return { raw: s.override[h], final: s.override[h], gross, klein, prak, manual: true, hasPlan: false, formula: "manuell eingetragen" };
+  }
+  if (s.type === "wseminar") {
+    raw = klein; formula = "Ø kleine Leistungsnachweise";
+  } else if (s.type === "sport") {
+    let base = null;
+    if (prak != null && klein != null) { base = (2 * prak + klein) / 3; formula = "(2 × Ø Praxis + Ø kleine) ÷ 3"; }
+    else if (prak != null) { base = prak; formula = "Ø Praxis"; }
+    else if (klein != null) { base = klein; formula = "Ø kleine"; }
+    if (s.lf && gross != null) { raw = base != null ? (base + gross) / 2 : gross; formula = base != null ? "(Sportwert + Theorie) ÷ 2" : "Sporttheorie"; }
+    else raw = base;
+  } else if (!s.lf && h === 3 && klein != null) {
+    // Fächer auf grundlegendem Niveau: in 13/2 nur kleine Leistungsnachweise
+    raw = klein; formula = "Ø kleine (grundlegendes Niveau in 13/2)";
+  } else {
+    const parts = [], names = [];
+    if (gross != null) { parts.push(gross); names.push("Schulaufgabe/Klausur"); }
+    if (prak != null) { parts.push(prak); names.push("Praxis/Projekt"); }
+    if (klein != null) { parts.push(klein); names.push("Ø kleine"); }
+    raw = avg(parts);
+    formula = parts.length > 1 ? "(" + names.join(" + ") + ") ÷ " + parts.length : (names[0] || "");
+  }
+  if (raw == null) return null;
+  return { raw, final: roundPts(raw), gross, klein, prak, manual: false, hasPlan, formula };
+}
+function chosenLf() { return state.subjects.find(s => s.lf && !s.core) || null; }
+function coreBy(re) { return state.subjects.find(s => s.core && re.test(s.name)) || null; }
+// Zeilen: 1 = Deutsch, 2 = Mathematik, 3 = Leistungsfach, 4 und 5 = weitere Fächer.
+// Bei Substitution von Deutsch (Mathematik) wird Zeile 1 (2) zu einer frei gewählten 2. Fremdsprache (NW/Informatik).
+function subst() { return state.settings.subst || "none"; }
+function examPickable(i) { return i >= 3 || (i === 0 && subst() === "D") || (i === 1 && subst() === "M"); }
+function examSubjectId(i) {
+  const s = examPickable(i) ? findS(state.exams[i].subjectId) : i === 0 ? coreBy(/^deutsch/i) : i === 1 ? coreBy(/^mathe/i) : chosenLf();
+  return s ? s.id : null;
+}
+function examRowLabel(i) {
+  if (i === 0) return subst() === "D" ? "2. fortgeführte Fremdsprache (statt Deutsch)" : "Deutsch";
+  if (i === 1) return subst() === "M" ? "2. Naturwissenschaft/Informatik (statt Mathematik)" : "Mathematik";
+  if (i === 2) return "Leistungsfach";
+  return i === 3 ? "Weiteres Fach" : "Weiteres Fach";
+}
+function grp(s) { return GROUPS[s && s.group] || GROUPS.none; }
+function fullyBelegt(s) { return s.hj.every(Boolean); }
+function lfEligible(s) {
+  if (s.core || !grp(s).lf || !fullyBelegt(s)) return false;
+  if (s.group === "kumu" && !state.settings.kumuLf) return false;
+  if (subst() === "D") return s.group === "fs";
+  if (subst() === "M") return s.group === "nw" || s.group === "inf";
+  return true;
+}
+function freeEligible(s) { const g = grp(s); return !s.core && !s.lf && g.abi && !g.lfOnly && fullyBelegt(s); }
+function rowEligible(i, s) {
+  if (!freeEligible(s)) return false;
+  if (i === 0) return s.group === "fs";
+  if (i === 1) return s.group === "nw" || s.group === "inf";
+  return true;
+}
+// Prüfungsart, die das Fach bzw. die Regel vorgibt (§ 48 GSO, Handout PuLSt)
+function forcedArt(i) {
+  const s = findS(examSubjectId(i));
+  if (subst() === "D" && i === 1) return "schriftlich";   // Mathematik verpflichtend schriftlich
+  if (subst() === "M" && i === 0) return "schriftlich";   // Deutsch verpflichtend schriftlich
+  if (subst() !== "none" && i === 2) return "schriftlich"; // Leistungsfach verpflichtend schriftlich
+  if (!s) return null;
+  if (s.group === "kumu") return i === 2 ? "schriftlich" : "mündlich";
+  if (grp(s).oral) return "mündlich";
+  return null;
+}
+function effArt(i) { return forcedArt(i) || state.exams[i].art || (i < 3 ? "schriftlich" : "mündlich"); }
+// Ergebnis in vierfacher Wertung; mündliche Zusatzprüfung (nur schriftliche Fächer): schriftlich : mündlich = 2 : 1
+function examV4(i) {
+  const e = state.exams[i];
+  if (e.points == null) return null;
+  if (e.zusatz != null && effArt(i) === "schriftlich") return Math.round((2 * e.points + e.zusatz) * 4 / 3);
+  return e.points * 4;
+}
+// Regeln für die Abiturfächer-Kombination (§ 48 Abs. 1 und 2, § 44 Abs. 2 Nr. 1, § 19 Abs. 2 GSO)
+function abiChecks() {
+  const subs = [0, 1, 2, 3, 4].map(i => findS(examSubjectId(i)));
+  const chosen = subs.filter(Boolean), complete = chosen.length === 5;
+  const items = [], add = (st, text, detail) => items.push({ st, text, detail });
+  const need = ok => ok ? "ok" : complete ? "warn" : "open";
+  const sub = subst();
+  add(complete ? "ok" : "open", sub === "none" ? "Fünf Abiturfächer: Deutsch, Mathematik, Leistungsfach + 2 weitere" : "Fünf Abiturfächer (mit Substitution von " + (sub === "D" ? "Deutsch" : "Mathematik") + ")", chosen.length + " von 5");
+  const arts = [0, 1, 2, 3, 4].map(effArt);
+  const nS = arts.filter(a => a === "schriftlich").length;
+  add(nS === 3 ? "ok" : "warn", "Genau 3 schriftliche und 2 mündliche Prüfungen", nS + " schriftlich · " + (5 - nS) + " mündlich");
+  if (sub === "none") {
+    const eS = [0, 1, 2].filter(i => arts[i] === "schriftlich").length;
+    add(eS >= 2 ? "ok" : "warn", "Deutsch, Mathematik, Leistungsfach: mind. 2× schriftlich, höchstens 1× mündlich", eS + " von 3 schriftlich");
+    const fS = [3, 4].filter(i => arts[i] === "schriftlich").length;
+    add(fS <= 1 ? "ok" : "warn", "Weitere Fächer: mind. 1× mündlich, höchstens 1× schriftlich", fS + " schriftlich");
+  } else {
+    const lfS = subs[2], pair = subs[sub === "D" ? 0 : 1];
+    const okG = sub === "D" ? (s => s.group === "fs") : (s => s.group === "nw" || s.group === "inf");
+    add(need(lfS && okG(lfS)), sub === "D" ? "Leistungsfach ist eine fortgeführte Fremdsprache (schriftlich)" : "Leistungsfach ist eine Naturwissenschaft oder Informatik (schriftlich)", lfS ? esc(lfS.name) : "fehlt");
+    add(need(pair && okG(pair)), sub === "D" ? "Eine weitere fortgeführte Fremdsprache als Prüfungsfach" : "Eine weitere Naturwissenschaft oder Informatik als Prüfungsfach", pair ? esc(pair.name) : "fehlt");
+    if (sub === "M") add(need(chosen.some(s => s.group === "fs" || s.group === "fs_spaet")), "Eine Fremdsprache als Prüfungsfach (bei Substitution von Mathematik)", chosen.filter(s => s.group === "fs" || s.group === "fs_spaet").map(s => esc(s.name)).join(", ") || "fehlt");
+  }
+  add(need(chosen.some(s => s.group === "fs" || s.group === "nw")), "Eine fortgeführte Fremdsprache oder Naturwissenschaft dabei", chosen.filter(s => s.group === "fs" || s.group === "nw").map(s => esc(s.name)).join(", ") || "fehlt");
+  add(need(chosen.some(s => s.group === "gpr")), "Ein gesellschaftswissenschaftliches Fach (GPR) dabei", chosen.filter(s => s.group === "gpr").map(s => esc(s.name)).join(", ") || "fehlt");
+  const have = new Set(chosen.map(s => grp(s).field).filter(Boolean));
+  const miss = Object.keys(FIELDS).filter(f => !have.has(f));
+  add(need(!miss.length), "Alle drei Aufgabenfelder abgedeckt", miss.length ? "fehlt: " + miss.map(f => FIELDS[f]).join(", ") : "passt");
+  const lfS = subs[2], bad = [0, 1, 3, 4].filter(examPickable).map(i => subs[i]).filter(s => s && (!grp(s).abi || grp(s).lfOnly));
+  if (lfS && (!grp(lfS).lf || (lfS.group === "kumu" && !state.settings.kumuLf))) bad.push(lfS);
+  if (bad.length) add("warn", "Nur zulässige Prüfungsfächer gewählt", bad.map(s => esc(s.name)).join(", ") + " nicht zulässig");
+  if (lfS && lfS.group === "sport" && chosen.some(s => s.group === "fs_spaet")) add("warn", "Bei Leistungsfach Sport ist kein Abitur in Spanisch (spät beginnend) möglich", "laut Schule");
+  const notFull = chosen.filter(s => !fullyBelegt(s));
+  add(notFull.length ? "warn" : need(true), "Alle Abiturfächer in allen 4 Halbjahren belegt", notFull.length ? notFull.map(s => esc(s.name)).join(", ") : "passt");
+  return items;
+}
+function examIds() { return [0, 1, 2, 3, 4].map(examSubjectId).filter(Boolean); }
+function isAbi(s) { return !!(s.lf || s.core || examIds().includes(s.id)); }
+function belegtN(s) { return s.hj.filter(Boolean).length; }
+function vkPartnerOf(s) { return state.subjects.find(v => v.group === "vk" && v.vkPartner === s.id) || null; }
+// Einbringungsregeln laut Handout PuLSt / Anlage 10 GSO: Pflicht- und Höchstzahl je Fach
+function rulesFor(s) {
+  const n = belegtN(s);
+  let p, max = 4, why;
+  if (isAbi(s)) { p = n; why = s.core ? "Deutsch/Mathematik: alle" : s.lf ? "Leistungsfach: alle" : "Abiturfach: alle"; }
+  else if (s.group === "seminar") { p = n; max = n; why = "W-Seminar: 12/1 und 12/2"; }
+  else if (s.group === "vk") { p = 0; max = n; why = "zusammen mit Partnerfach 3 aus 12/1–12/2"; }
+  else if (vkPartnerOf(s)) { p = 0; why = "zusammen mit Vertiefungskurs 3 aus 12/1–12/2"; }
+  else if (s.group === "sport") { p = 0; max = 3; why = "Sport: 0, höchstens 3"; }
+  else if (s.group === "none") { p = 0; max = 3; why = "Zusatzangebot: 0, höchstens 3"; }
+  else { p = Math.max(0, n - 1); why = "Pflichtbelegung minus eins"; }
+  if (!isAbi(s) && s.pOv != null) { p = Math.min(n, s.pOv); why = "manuell festgelegt"; }
+  if (!isAbi(s) && s.maxOv != null) max = Math.min(4, s.maxOv);
+  return { p: Math.min(p, max), max, why };
+}
+function effP(s) { return rulesFor(s).p; }
+function effMax(s) { return rulesFor(s).max; }
+// Gruppen-Mindestzahlen: Fremdsprachen je mind. 4, Naturwissenschaften je mind. 4, Vertiefungskurs + Partnerfach 3
+function groupMins() {
+  const g = [];
+  const fs = state.subjects.filter(s => s.group === "fs" || s.group === "fs_spaet");
+  if (fs.length) g.push({ subs: fs, min: 4, label: "Fremdsprachen zusammen mind. 4" });
+  const nw = state.subjects.filter(s => s.group === "nw");
+  if (nw.length) g.push({ subs: nw, min: 4, label: "Naturwissenschaften zusammen mind. 4" });
+  state.subjects.filter(s => s.group === "vk").forEach(v => { const p = findS(v.vkPartner); g.push({ subs: p ? [v, p] : [v], hjs: [0, 1], min: 3, label: esc(v.name) + (p ? " + " + esc(p.name) : "") + ": 3 aus 12/1–12/2" }); });
+  return g;
+}
+// Optionsregel: nur Fächer mit Belegung über 4 Halbjahre, die kein Abiturfach sind
+function optionCandidates() { return state.subjects.filter(s => fullyBelegt(s) && !isAbi(s) && effP(s) > 0 && !["sport", "none", "seminar", "vk"].includes(s.group)); }
+// Wie viele Einbringungen sind bei voller Belegung Pflicht? (inkl. Seminararbeit)
+function plannedMandatory(reduceId) {
+  let n = SLOTS_SEMINAR;
+  const pOf = s => Math.max(0, effP(s) - (s.id === reduceId ? 1 : 0));
+  state.subjects.forEach(s => { n += pOf(s); });
+  groupMins().forEach(g => {
+    const have = g.subs.reduce((a, s) => a + Math.min(pOf(s), g.hjs ? g.hjs.filter(h => s.hj[h]).length : belegtN(s)), 0);
+    const cap = g.subs.reduce((a, s) => a + (g.hjs ? g.hjs.filter(h => s.hj[h]).length : belegtN(s)), 0);
+    n += Math.max(0, Math.min(g.min, cap) - have);
+  });
+  return n;
+}
+
+function seminarTotal() {
+  const a = state.seminar.arbeit, p = state.seminar.praes;
+  if (a == null && p == null) return null;
+  // Handout PuLSt: (Seminararbeit × 3 + Präsentation) ÷ 2, max. 30 Punkte
+  if (a != null && p != null) return { pts: Math.round((3 * a + p) / 2), est: false };
+  return { pts: Math.round((a != null ? a : p) * 2), est: true };
+}
+
+// Einbringung: Pflicht je Fach (beste n), dann Gruppen-Mindestzahlen, dann Rest mit den besten Leistungen auffüllen
+function selectFor(slots, reduceId) {
+  const pick = new Set(), cnt = {}, items = {}, key = (id, h) => id + ":" + h;
+  let used = 0;
+  for (const s of state.subjects) {
+    const its = [];
+    for (let h = 0; h < 4; h++) { const r = hjl(s, h); if (r) its.push({ s, h, v: r.final }); }
+    its.sort((a, b) => b.v - a.v);
+    items[s.id] = its; cnt[s.id] = 0;
+    const p = Math.min(Math.max(0, effP(s) - (reduceId === s.id ? 1 : 0)), its.length);
+    for (let i = 0; i < p; i++) { pick.add(key(s.id, its[i].h)); cnt[s.id]++; used++; }
+  }
+  for (const g of groupMins()) {
+    const inG = it => !g.hjs || g.hjs.includes(it.h);
+    let have = g.subs.reduce((a, s) => a + items[s.id].filter(it => inG(it) && pick.has(key(s.id, it.h))).length, 0);
+    const cand = g.subs.flatMap(s => items[s.id].filter(it => inG(it) && !pick.has(key(s.id, it.h)))).sort((a, b) => b.v - a.v);
+    for (const it of cand) {
+      if (have >= g.min) break;
+      if (cnt[it.s.id] >= effMax(it.s)) continue;
+      pick.add(key(it.s.id, it.h)); cnt[it.s.id]++; used++; have++;
+    }
+  }
+  const pool = state.subjects.flatMap(s => items[s.id].filter(it => !pick.has(key(s.id, it.h)))).sort((a, b) => b.v - a.v);
+  for (const it of pool) {
+    if (used >= slots) break;
+    if (cnt[it.s.id] >= effMax(it.s) || it.v === 0) continue;
+    pick.add(key(it.s.id, it.h)); cnt[it.s.id]++; used++;
+  }
+  let sum = 0, n = 0;
+  for (const s of state.subjects) for (let h = 0; h < 4; h++) if (pick.has(key(s.id, h))) { sum += hjl(s, h).final; n++; }
+  return { pick, sum, n };
+}
+function computeAll() {
+  const slots = SLOTS_TOTAL - SLOTS_SEMINAR;
+  let sel = selectFor(slots), streichFach = null, streichArt = null;
+  const planned = plannedMandatory();
+  const cands = optionCandidates();
+  if (planned > SLOTS_TOTAL) {
+    // Optionsregel Möglichkeit 2: Streichung nötig, damit die Fächerwahl in 40 Einbringungen passt
+    let best = null;
+    for (const s of cands) {
+      if (plannedMandatory(s.id) > SLOTS_TOTAL) continue;
+      const alt = selectFor(slots, s.id);
+      if (!best || alt.sum > best.sel.sum) best = { sel: alt, s };
+    }
+    if (best) { sel = best.sel; streichFach = best.s; streichArt = "Streichung"; }
+  } else if (state.settings.streichung) {
+    // Optionsregel Möglichkeit 1: Ersatz durch eine bessere Halbjahresleistung
+    for (const s of cands) {
+      const alt = selectFor(slots, s.id);
+      if (alt.n >= sel.n && alt.sum > sel.sum) { sel = alt; streichFach = s; streichArt = "Ersatz"; }
+    }
+  }
+  const plannedFinal = streichFach && streichArt === "Streichung" ? plannedMandatory(streichFach.id) : planned;
+  let all = 0;
+  for (const s of state.subjects) for (let h = 0; h < 4; h++) if (hjl(s, h)) all++;
+  const sem = seminarTotal();
+  const knownB1 = sel.sum + (sem ? sem.pts : 0);
+  const knownSlots = sel.n + (sem ? SLOTS_SEMINAR : 0);
+  const avgB1 = knownSlots ? knownB1 / knownSlots : null;
+  const block1 = knownSlots ? (knownSlots >= SLOTS_TOTAL ? knownB1 : avgB1 * SLOTS_TOTAL) : null;
+
+  // Block II: eingetragene Prüfungen ×4, fehlende über Fach-Ø hochrechnen
+  let b2 = 0, b2Known = 0, b2Real = 0, examsEntered = 0;
+  const examEst = state.exams.map((e, i) => {
+    if (e.points != null) { examsEntered++; const v4 = examV4(i); b2Real += v4; return { v4, est: false }; }
+    const s = findS(examSubjectId(i));
+    let v = null;
+    if (s) { const vals = [0, 1, 2, 3].map(h => hjl(s, h)).filter(Boolean).map(r => r.raw); v = avg(vals); }
+    if (v == null && avgB1 != null) v = avgB1;
+    return { v4: v != null ? v * 4 : null, est: true };
+  });
+  examEst.forEach(e => { if (e.v4 != null) { b2 += e.v4; b2Known++; } });
+  const block2 = b2Known === 5 ? b2 : (b2Known ? b2 / b2Known * 5 : (avgB1 != null ? avgB1 * 20 : null));
+  const total = block1 != null && block2 != null ? Math.round(block1) + Math.round(block2) : null;
+  return { sel, streichFach, streichArt, planned: plannedFinal, all, sem, knownB1, knownSlots, avgB1, block1, block2, b2Real, examsEntered, examEst, total };
+}
+function noteFromPoints(P) {
+  if (P == null) return null;
+  if (P < 300) return null;
+  const n = Math.floor((1020 - P) / 18) / 10;
+  return Math.max(1, Math.min(4, n));
+}
+function minPointsFor(note) {
+  const t = Math.round(note * 10);
+  return Math.max(300, 1020 - 18 * (t + 1) + 1);
+}
+function fmt(n, d) { if (n == null || isNaN(n)) return "–"; return n.toLocaleString("de-DE", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
+function band(p) { if (p == null) return ""; if (p >= 13) return "b5"; if (p >= 10) return "b4"; if (p >= 7) return "b3"; if (p >= 4) return "b2"; return "b1"; }
+function chip(p, extra, title) {
+  return '<span class="pt ' + band(p) + " " + (extra || "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + (p == null ? "–" : p) + "</span>";
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+function subjName(s) { return esc(s.name) + (s.short ? ' <span class="muted small">' + esc(s.short) + "</span>" : ""); }
+function badges(s) { return (s.lf ? '<span class="badge lf">LF</span> ' : "") + (isAbi(s) && !s.lf ? '<span class="badge abi">Abi</span> ' : "") + (s.type === "wseminar" ? '<span class="badge">Seminar</span>' : ""); }
+
+/* ================= Ansichten ================= */
+const app = document.getElementById("app");
+function currentTab() {
+  const t = (location.hash || "").slice(1);
+  if (t === "admin") return session && session.admin ? "admin" : "uebersicht";
+  return ["uebersicht", "faecher", "abitur", "optionen"].includes(t) ? t : "uebersicht";
+}
+function render() {
+  if (!session) { app.innerHTML = viewLogin(); return; }
+  const tab = currentTab();
+  document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
+  const focusId = document.activeElement && document.activeElement.id;
+  app.innerHTML = tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : tab === "optionen" ? viewOptions() : tab === "admin" ? viewAdmin() : viewOverview();
+  if (focusId) { const el = document.getElementById(focusId); if (el && el.tagName !== "BUTTON") el.focus(); }
+}
+
+function emptyState() {
+  return '<section class="card empty"><div class="raute" style="width:44px;height:44px" aria-hidden="true"></div>' +
+    "<h2>Leg deine Fächer an</h2><p class=\"muted\">Wähle deine Fächer aus den Vorlagen oder leg eigene an. Danach trägst du pro Halbjahr Schulaufgaben, Klausuren, Exen und Abfragen ein. Halbjahresleistung, Einbringung und Abischnitt rechnet der Notenmanager selbst aus.</p>" +
+    '<div class="actions" style="justify-content:center"><a class="btn primary" href="#faecher" data-action="open-add">Fächer auswählen</a>' +
+    (legacy ? '<button class="btn" data-action="import-legacy">Bisherige Noten übernehmen (' + legacy.subjects.length + " Fächer)</button>" : "") + "</div>" +
+    (legacy ? '<p class="muted small">Auf diesem Gerät bzw. in deinem Konto liegen noch Noten aus der Zeit vor den Anmeldecodes. Du kannst sie einmalig in dieses Profil übernehmen.</p>' : "") + "</section>";
+}
+
+function viewOverview() {
+  if (!state.subjects.length) return emptyState();
+  const c = computeAll(), L = hjLabels();
+  const note = noteFromPoints(c.total);
+  const progress = Math.min(100, (c.knownSlots / SLOTS_TOTAL) * 100);
+  const final = c.knownSlots >= SLOTS_TOTAL && c.examsEntered === 5;
+  let h = '<section class="grid g-hero">';
+  h += '<div class="card hero"><span class="label">' + (final ? "Abiturdurchschnitt" : "Hochgerechneter Abischnitt") + "</span>" +
+    '<div class="schnitt num">' + (note != null ? fmt(note, 1) : (c.total != null ? "n. b." : "–")) + "</div>" +
+    '<div class="meta num">' + (c.total != null ? fmt(c.total) + " von 900 Punkten" : "Noch keine Noten eingetragen") +
+    (c.total != null && c.total < 300 ? " · unter 300 Punkten nicht bestanden" : "") + "</div>" +
+    '<div class="bar" aria-hidden="true"><i style="width:' + progress.toFixed(1) + '%"></i></div>' +
+    '<div class="meta small">' + c.knownSlots + " von 40 Halbjahresleistungen stehen fest" + (c.examsEntered ? " · " + c.examsEntered + " von 5 Prüfungen" : "") + "</div></div>";
+  h += '<div class="stats">' +
+    stat("Block I · Qualifikationsphase", c.block1 != null ? fmt(c.block1) + " <small>/ 600</small>" : "–", c.knownSlots < SLOTS_TOTAL ? "hochgerechnet aus " + fmt(c.knownB1) + " Punkten" : "endgültig") +
+    stat("Block II · Abiturprüfung", c.block2 != null ? fmt(c.block2) + " <small>/ 300</small>" : "–", c.examsEntered < 5 ? "geschätzt aus deinen Fachschnitten" : "eingetragen") +
+    stat("Ø eingebrachte Leistung", c.avgB1 != null ? fmt(c.avgB1, 2) + " <small>Punkte</small>" : "–", c.avgB1 != null ? "entspricht Note " + NOTE[roundPts(c.avgB1)] : "") +
+    stat("Unterpunktungen (unter 5)", underCount(c) + " <small>/ max. 8</small>", "Seminararbeit unter 9 zählt doppelt") +
+    "</div></section>";
+
+  // Halbjahre
+  h += '<section><div class="card-head"><h2>Halbjahre</h2><span class="muted small">Was momentan in jedem Halbjahr eingebracht würde</span></div><div class="grid g-4">';
+  for (let i = 0; i < 4; i++) {
+    let vals = [], inS = 0, inN = 0;
+    for (const s of state.subjects) { const r = hjl(s, i); if (r) { vals.push(r.final); if (c.sel.pick.has(s.id + ":" + i)) { inS += r.final; inN++; } } }
+    const a = avg(vals);
+    h += '<div class="card hj' + (state.settings.currentHj === i ? " current" : "") + '"><div class="hj-row"><span class="label">' + L[i] + "</span>" +
+      (state.settings.currentHj === i ? '<span class="badge abi">aktuell</span>' : "") + "</div>" +
+      '<div class="big num">' + (inN ? fmt(inS) : "–") + ' <span class="muted small" style="font-family:var(--font-body);font-weight:500">Punkte eingebracht</span></div>' +
+      '<div class="hj-row"><span class="muted">Eingebracht</span><span class="num">' + inN + " von " + vals.length + " HJL</span></div>" +
+      '<div class="hj-row"><span class="muted">Ø eingebracht</span><span class="num">' + (inN ? fmt(inS / inN, 2) : "–") + "</span></div>" +
+      '<div class="hj-row"><span class="muted">Ø alle Fächer</span><span class="num">' + (a != null ? fmt(a, 2) : "–") + "</span></div></div>";
+  }
+  h += "</div></section>";
+
+  // Matrix
+  h += '<section class="card"><div class="card-head"><h2>Einbringung</h2><span class="muted small">Pflichteinbringungen: ' + c.planned + " von 40 · frei wählbar: " + Math.max(0, 40 - c.planned) +
+    (c.streichFach ? " · Optionsregel (" + c.streichArt + ") in " + esc(c.streichFach.name) : "") + "</span></div>" +
+    '<p class="muted small" style="margin:-6px 0 12px">Zuerst die Pflicht je Fach, dann Fremdsprachen und Naturwissenschaften auf je mind. 4, danach die restlichen Plätze mit deinen besten Halbjahresleistungen.</p>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Fach</th>' + L.map(l => '<th class="c">' + l + "</th>").join("") +
+    '<th class="c">Pflicht</th><th class="r">Σ eingebr.</th></tr></thead><tbody>';
+  for (const s of state.subjects) {
+    let sum = 0;
+    h += '<tr><td><div class="subj-cell"><a href="#faecher" data-action="select" data-id="' + s.id + '" style="color:inherit;text-decoration:none;font-weight:600">' + subjName(s) + "</a> " + badges(s) + "</div></td>";
+    for (let i = 0; i < 4; i++) {
+      if (!s.hj[i]) { h += '<td class="c muted small">—</td>'; continue; }
+      const r = hjl(s, i);
+      if (!r) { h += '<td class="c"><span class="muted small">offen</span></td>'; continue; }
+      const inn = c.sel.pick.has(s.id + ":" + i);
+      if (inn) sum += r.final;
+      h += '<td class="c">' + chip(r.final, (inn ? "" : "out") + (r.hasPlan ? " plan" : ""), (inn ? "eingebracht" : "nicht eingebracht") + " · exakt " + fmt(r.raw, 2)) + "</td>";
+    }
+    const R = rulesFor(s);
+    h += '<td class="c num small" title="' + esc(R.why) + '">' + R.p + (R.max < 4 ? " (max " + R.max + ")" : "") + '</td><td class="r num"><b>' + sum + "</b></td></tr>";
+  }
+  if (c.sem) h += '<tr><td><div class="subj-cell"><b>Seminararbeit</b> <span class="badge">×2 HJL</span></div></td><td colspan="4" class="c">' + chip(Math.round(c.sem.pts / 2), c.sem.est ? "plan" : "", "zählt doppelt") + ' <span class="muted small">' + c.sem.pts + " / 30" + (c.sem.est ? " (geschätzt)" : "") + '</span></td><td class="c num small">2</td><td class="r num"><b>' + c.sem.pts + "</b></td></tr>";
+  h += '</tbody><tfoot><tr><td>Gesamt</td><td colspan="5" class="muted small" style="font-weight:500">' + c.knownSlots + " von 40 Plätzen belegt</td><td class=\"r num\">" + fmt(c.knownB1) + "</td></tr></tfoot></table></div>" +
+    '<div class="legend"><span>' + chip(12) + " eingebracht</span><span>" + chip(6, "out") + " nicht eingebracht</span><span>" + chip(9, "plan") + " enthält Prognose-Noten</span></div></section>";
+
+  // Zulassung + Ziel
+  h += '<section class="grid g-2">' + viewChecks(c) + viewTarget(c) + "</section>";
+  return h;
+}
+function stat(label, v, sub) { return '<div class="stat"><span class="label">' + label + '</span><span class="v num">' + v + '</span><span class="muted small">' + (sub || "") + "</span></div>"; }
+// Mind. 32 der 40 Einbringungen mit je 5 Punkten; die Seminararbeit zählt als 2 und braucht dafür 9 Punkte
+function underCount(c) {
+  let n = 0;
+  for (const s of state.subjects) for (let h = 0; h < 4; h++) if (c.sel.pick.has(s.id + ":" + h) && hjl(s, h).final < 5) n++;
+  if (c.sem && c.sem.pts < 9) n += 2;
+  return n;
+}
+// Vorgaben für Leistungsnachweise pro Halbjahr (Handout PuLSt)
+const KLEIN_M = ["abfrage", "referat", "muendlich"], KLEIN_S = ["ex", "kurzarbeit"];
+function lnReq(s, h, gs) {
+  if (s.type === "sport" || s.group === "none") return "";
+  const kl = gs.filter(g => (CATS[g.cat] || CATS.sonstige).group === "klein");
+  const nG = gs.filter(g => (CATS[g.cat] || CATS.sonstige).group === "gross").length;
+  const nK = kl.length, nM = kl.filter(g => KLEIN_M.includes(g.cat)).length, nS = kl.filter(g => KLEIN_S.includes(g.cat)).length;
+  let txt, ok;
+  if (s.group === "seminar") { txt = "mind. 2 kleine Leistungsnachweise"; ok = nK >= 2; }
+  else if (!s.lf && h === 3) { txt = "keine Schulaufgabe, mind. 1 kleiner schriftlicher und 1 kleiner mündlicher Leistungsnachweis"; ok = nS >= 1 && nM >= 1; }
+  else { txt = "1 Schulaufgabe/Klausur und mind. 2 kleine Leistungsnachweise, davon mind. 1 mündlich (Gewichtung 1 : 1)"; ok = nG >= 1 && nK >= 2 && nM >= 1; }
+  return "Vorgabe: " + txt + (gs.length ? (ok ? " · erfüllt" : " · noch nicht vollständig") : "");
+}
+function belegMissing() {
+  const S = state.subjects, has = f => S.some(f), m = [];
+  if (!coreBy(/^deutsch/i)) m.push("Deutsch");
+  if (!coreBy(/^mathe/i)) m.push("Mathematik");
+  const fs = S.filter(s => s.group === "fs"), nw = S.filter(s => s.group === "nw");
+  if (!fs.length) m.push("fortgeführte Fremdsprache");
+  if (!nw.length) m.push("Naturwissenschaft");
+  if (!(fs.length >= 2 || nw.length >= 2 || has(s => ["fs_spaet", "inf", "inf_spaet"].includes(s.group)))) m.push("2. Fremdsprache, 2. Naturwissenschaft oder Informatik");
+  if (!has(s => /relig|ethik/i.test(s.name))) m.push("Religionslehre/Ethik");
+  if (!has(s => /geschichte/i.test(s.name))) m.push("Geschichte");
+  if (!has(s => s.group === "kumu")) m.push("Kunst oder Musik");
+  if (!has(s => s.group === "sport")) m.push("Sport");
+  if (!has(s => /politik/i.test(s.name) && s.hj[0] && s.hj[1])) m.push("Politik und Gesellschaft in 12/1–12/2");
+  if (!has(s => /geograph|wirtschaft/i.test(s.name) && s.hj[0] && s.hj[1])) m.push("Geographie oder WR in 12/1–12/2");
+  if (!has(s => /politik|geograph|wirtschaft/i.test(s.name) && s.hj[2] && s.hj[3])) m.push("PuG, Geographie oder WR in 13/1–13/2 weiterführen");
+  if (!has(s => s.group === "seminar")) m.push("W-Seminar");
+  if (!chosenLf()) m.push("weiteres Leistungsfach");
+  return m;
+}
+// Bestehensregeln Block II (§ 54 GSO, Handout PuLSt), Werte in vierfacher Wertung
+function blockIIChecks() {
+  const v = [0, 1, 2, 3, 4].map(examV4);
+  if (v.some(x => x == null)) return [];
+  const subs = [0, 1, 2, 3, 4].map(i => findS(examSubjectId(i)));
+  const items = [], add = (st, text, detail) => items.push({ st, text, detail });
+  const sum = v.reduce((a, b) => a + b, 0);
+  add(sum >= 100 ? "ok" : "warn", "Alle 5 Prüfungen zusammen mind. 100 Punkte", sum + " / 300");
+  const ge20 = v.filter(x => x >= 20).length, coreRows = [0, 1, 2].filter(i => subs[i] && subs[i].lf && !examPickable(i));
+  const core20 = coreRows.some(i => v[i] >= 20);
+  add(ge20 >= 3 && core20 ? "ok" : "warn", "Mind. 3 Prüfungen mit je 20 Punkten, darunter Deutsch, Mathematik oder LF", ge20 + " Prüfungen" + (core20 ? "" : ", keine davon D/M/LF"));
+  const sub = subst(), fixed = sub === "D" ? [1, 2] : sub === "M" ? [0, 2] : [0, 1];
+  const third = [0, 1, 2, 3, 4].filter(i => !fixed.includes(i) && subs[i] && (subs[i].group === "fs" || subs[i].group === "nw")).sort((a, b) => v[b] - v[a])[0];
+  const trioName = sub === "D" ? "Mathematik + LF + Fremdsprache/NW" : sub === "M" ? "Deutsch + LF + Fremdsprache/NW" : "Deutsch + Mathematik + Fremdsprache/NW";
+  if (third == null) add("warn", trioName + ": mind. 40 Punkte", "keine Fremdsprache/NW unter den Prüfungen");
+  else {
+    const trio = [...fixed, third].map(i => v[i]), t = trio.reduce((a, b) => a + b, 0), low = trio.filter(x => x < 16).length;
+    add(t >= 40 && low <= 1 ? "ok" : "warn", trioName + ": mind. 40 Punkte, nur einmal unter 16", t + " Punkte" + (low ? " · " + low + "× unter 16" : ""));
+  }
+  const badF = Object.keys(FIELDS).filter(f => [0, 1, 2, 3, 4].filter(i => subs[i] && grp(subs[i]).field === f && v[i] < 16).length > 1);
+  add(badF.length ? "warn" : "ok", "Pro Aufgabenfeld nur einmal unter 16 Punkten", badF.length ? badF.map(f => FIELDS[f]).join(", ") : "passt");
+  add(v.every(x => x >= 4) ? "ok" : "warn", "In jedem Prüfungsfach mind. 4 Punkte (vierfach)", v.filter(x => x < 4).length ? v.filter(x => x < 4).length + "× darunter" : "passt");
+  return items;
+}
+function checkList(items) {
+  return '<ul class="checks">' + items.map(i => '<li><span class="ico ' + i.st + '">' + (i.st === "ok" ? "✓" : i.st === "warn" ? "!" : "·") + "</span><span>" + i.text + '</span><span class="muted small num" style="text-align:right">' + i.detail + "</span></li>").join("") + "</ul>";
+}
+function sumSubject(s) {
+  const vals = [0, 1, 2, 3].map(h => hjl(s, h)).filter(Boolean);
+  if (!vals.length) return null;
+  const sum = vals.reduce((a, r) => a + r.final, 0), n = s.hj.filter(Boolean).length;
+  return { sum, n: vals.length, proj: vals.length < n ? sum / vals.length * n : sum, done: vals.length >= n };
+}
+function viewChecks(c) {
+  const items = [];
+  const add = (st, text, detail) => items.push({ st, text, detail });
+  const miss = belegMissing();
+  add(miss.length ? "warn" : "ok", "Pflichtbelegung vollständig", miss.length ? "fehlt: " + miss.join(", ") : "passt");
+  add(c.planned <= SLOTS_TOTAL ? "ok" : "warn", "Pflichteinbringungen passen in 40", c.planned + " von 40" + (c.streichArt === "Streichung" ? " (nach Streichung)" : ""));
+  if (c.block1 != null) add(c.block1 >= 200 ? "ok" : "warn", "40 eingebrachte HJL: mind. 200 Punkte", fmt(c.block1) + (c.knownSlots < 40 ? " (hochgerechnet)" : "")); else add("open", "40 eingebrachte HJL: mind. 200 Punkte", "noch keine Daten");
+  const u = underCount(c);
+  add(u <= 8 ? "ok" : "warn", "Mind. 32 eingebrachte HJL mit je 5 Punkten (Seminararbeit: 9)", u + " Unterpunktungen von max. 8");
+  let zero = [];
+  for (const s of state.subjects) { if (s.group === "none") continue; for (let h = 0; h < 4; h++) { const r = hjl(s, h); if (r && r.final === 0) zero.push(esc(s.name) + " " + hjLabels()[h]); } }
+  if (state.seminar.arbeit === 0) zero.push("Seminararbeit");
+  if (state.seminar.praes === 0) zero.push("Präsentation");
+  add(zero.length ? "warn" : "ok", "Kein Pflichtkurs, W-Seminar oder Seminararbeit mit 0 Punkten", zero.length ? zero.join(", ") : "passt");
+  const core = state.subjects.filter(s => s.lf);
+  if (core.length) {
+    let t = 0, ok = true;
+    core.forEach(s => { const r = sumSubject(s); if (r) t += r.proj; else ok = false; });
+    add(!ok ? "open" : t >= 48 ? "ok" : "warn", "Deutsch, Mathematik und LF zusammen mind. 48 Punkte (12 HJL)", fmt(t) + (ok ? "" : " – unvollständig"));
+  }
+  const abis = state.subjects.filter(s => examIds().includes(s.id));
+  if (abis.length) {
+    let t = 0, ok = abis.length === 5;
+    abis.forEach(s => { const r = sumSubject(s); if (r) t += r.proj; else ok = false; });
+    add(!ok ? "open" : t >= 100 ? "ok" : "warn", "5 Abiturfächer zusammen mind. 100 Punkte (20 HJL)", fmt(t) + (ok ? "" : " – unvollständig"));
+  } else add("open", "Abiturfächer festlegen", "im Tab Abitur");
+  const ac = abiChecks(), acBad = ac.filter(x => x.st === "warn"), acOpen = ac.filter(x => x.st === "open");
+  add(acBad.length ? "warn" : acOpen.length ? "open" : "ok", "Fächerkombination fürs Abitur", acBad.length ? acBad[0].text : acOpen.length ? "noch unvollständig" : "gültig");
+  const b2 = blockIIChecks();
+  if (b2.length) items.push(...b2); else add("open", "Bestehensregeln der Abiturprüfung", "sobald alle 5 Ergebnisse eingetragen sind");
+  return '<div class="card"><div class="card-head"><h2>Zulassung &amp; Bestehen</h2><span class="muted small">Punktehürden Block I und II</span></div>' + checkList(items) + "</div>";
+}
+function viewTarget(c) {
+  const target = ui.target || 2.0;
+  const need = minPointsFor(target);
+  const knownB2 = c.b2Real;
+  const restSlots = Math.max(0, SLOTS_TOTAL - c.knownSlots);
+  const restExams = 5 - c.examsEntered;
+  const weight = restSlots + restExams * 4;
+  const have = c.knownB1 + knownB2;
+  let msg;
+  if (weight === 0) msg = have >= need ? "Geschafft – du liegst bei " + have + " Punkten." : "Nicht mehr erreichbar.";
+  else {
+    const a = (need - have) / weight;
+    if (a <= 0) msg = "Schon sicher: Die Punkte reichen bereits.";
+    else if (a > 15) msg = "Rechnerisch nicht mehr erreichbar (du bräuchtest " + fmt(a, 1) + " Punkte im Schnitt).";
+    else msg = "Du brauchst ab jetzt im Schnitt <b class=\"num\">" + fmt(a, 2) + " Punkte</b> (≈ Note " + NOTE[Math.min(15, Math.ceil(a - 1e-9))] + ") in allen noch offenen Halbjahresleistungen und Prüfungen.";
+  }
+  const opts = [];
+  for (let t = 10; t <= 40; t++) opts.push('<option value="' + t / 10 + '"' + (Math.abs(t / 10 - target) < 1e-9 ? " selected" : "") + ">" + fmt(t / 10, 1) + "</option>");
+  return '<div class="card"><div class="card-head"><h2>Zielrechner</h2><span class="muted small">Was brauche ich noch?</span></div>' +
+    '<div class="form-row" style="margin-bottom:14px"><label class="field"><span>Wunsch-Abischnitt</span><select id="target" data-action="target">' + opts.join("") + "</select></label>" +
+    '<div class="field"><span>Benötigte Gesamtpunkte</span><div class="num" style="padding:8px 0;font-weight:700">' + need + " von 900</div></div></div>" +
+    '<p class="need" style="margin:0">' + msg + "</p>" +
+    '<p class="muted small" style="margin:12px 0 0">Offen: ' + restSlots + " Halbjahresleistungen und " + restExams + " Prüfungen (diese zählen vierfach).</p></div>";
+}
+
+/* ---- Fächer ---- */
+function viewSubjects() {
+  const L = hjLabels();
+  let sel = state.subjects.find(s => s.id === ui.selected) || state.subjects[0];
+  if (sel) ui.selected = sel.id;
+  let h = "";
+  if (ui.showAdd || !state.subjects.length) h += viewAdd();
+  if (!state.subjects.length) return h;
+  const c = computeAll();
+  h += '<section class="subj-layout"><div class="card subj-list"><div class="card-head" style="margin:4px 6px 6px"><h2>Fächer</h2><button class="btn sm" data-action="toggle-add">' + (ui.showAdd ? "Schließen" : "+ Fach") + "</button></div>";
+  for (const s of state.subjects) {
+    h += '<button class="subj-item" data-action="select" data-id="' + s.id + '" aria-current="' + (sel && s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + badges(s) + '</span><span class="mini">' +
+      [0, 1, 2, 3].map(i => { if (!s.hj[i]) return ""; const r = hjl(s, i); return r ? chip(r.final, c.sel.pick.has(s.id + ":" + i) ? "" : "out") : '<span class="pt out">·</span>'; }).join("") + "</span></button>";
+  }
+  h += "</div>" + (sel ? viewSubject(sel, c, L) : "") + "</section>";
+  return h;
+}
+function viewAdd() {
+  const have = new Set(state.subjects.map(s => s.name));
+  return '<section class="card"><div class="card-head"><h2>Fächer hinzufügen</h2><span class="muted small">Pflichteinbringungen nach Anlage 10 GSO sind voreingestellt und anpassbar</span></div>' +
+    '<div class="tpl-grid">' + TEMPLATES.map((t, i) => '<label class="check' + (have.has(t.name) ? " has" : "") + '"><input type="checkbox" id="tpl-' + i + '" data-tpl="' + i + '"' + (have.has(t.name) ? " disabled" : "") + "> " + esc(t.name) + "</label>").join("") + "</div>" +
+    '<div class="form-row" style="margin-top:14px"><label class="field"><span>Eigenes Fach (optional)</span><input type="text" id="custom-name" placeholder="z. B. Astrophysik"></label>' +
+    '<label class="field"><span>Fachgruppe</span><select id="custom-group">' + Object.entries(GROUPS).filter(([k]) => k !== "deutsch" && k !== "mathe").map(([k, g]) => '<option value="' + k + '"' + (k === "none" ? " selected" : "") + ">" + g.label + "</option>").join("") + "</select></label>" +
+    '<div class="actions"><button class="btn primary" data-action="add-subjects">Hinzufügen</button>' + (state.subjects.length ? '<button class="btn" data-action="toggle-add">Abbrechen</button>' : "") + "</div></div></section>";
+}
+function viewSubject(s, c, L) {
+  const today = new Date().toISOString().slice(0, 10);
+  const cur = s.hj[state.settings.currentHj] ? state.settings.currentHj : s.hj.indexOf(true);
+  let h = '<div class="grid" style="gap:16px;min-width:0">';
+  // Kopf + Eingabe
+  h += '<div class="card"><div class="card-head"><div><h2>' + esc(s.name) + "</h2><div style=\"margin-top:6px\">" + badges(s) + '<span class="muted small"> Pflichteinbringung: ' + effP(s) + " HJL" + (effMax(s) < 4 ? " · höchstens " + effMax(s) : "") + " (" + esc(rulesFor(s).why) + ")</span></div></div>" +
+    '<div class="num" style="text-align:right"><span class="label">Σ Halbjahre</span><div style="font-family:var(--font-display);font-weight:700;font-size:1.6rem">' + ((sumSubject(s) || {}).sum ?? "–") + "</div></div></div>";
+  h += '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
+    '<label class="field"><span>Halbjahr</span><select id="g-hj">' + L.map((l, i) => s.hj[i] ? '<option value="' + i + '"' + (i === cur ? " selected" : "") + ">" + l + "</option>" : "").join("") + "</select></label>" +
+    '<label class="field"><span>Art</span><select id="g-cat">' + Object.entries(CATS).filter(([k]) => s.type === "wseminar" ? CATS[k].group === "klein" : true).map(([k, v]) => '<option value="' + k + '"' + (k === (ui.lastCat || "ex") ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Punkte</span><select id="g-pts">' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (p === 10 ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"></label>' +
+    '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
+    '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional"></label>' +
+    '<label class="check"><input type="checkbox" id="g-plan"> Prognose</label>' +
+    '<button class="btn primary" type="submit">Note eintragen</button></form>' +
+    '<p class="muted small" style="margin:10px 0 0">„Prognose“ markiert eine erwartete Note für Was-wäre-wenn-Rechnungen. Ob Prognosen mitzählen, stellst du unter Optionen ein.</p></div>';
+  // Halbjahre
+  for (let i = 0; i < 4; i++) {
+    if (!s.hj[i]) continue;
+    const r = hjl(s, i);
+    const gs = s.grades.filter(g => g.hj === i).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const inn = c.sel.pick.has(s.id + ":" + i);
+    h += '<div class="card hjblock"><div class="hjblock-head"><h3>' + L[i] + "</h3><div class=\"actions\">" +
+      (r ? '<span class="muted small">' + (inn ? "eingebracht" : "nicht eingebracht") + "</span>" + chip(r.final, (inn ? "" : "out") + (r.hasPlan ? " plan" : "")) : '<span class="muted small">noch keine Noten</span>') + "</div></div>";
+    if (r) {
+      const parts = [];
+      if (r.gross != null) parts.push("Schulaufgabe/Klausur " + fmt(r.gross, 2));
+      if (r.prak != null) parts.push("Praxis " + fmt(r.prak, 2));
+      if (r.klein != null) parts.push("Ø kleine " + fmt(r.klein, 2));
+      h += '<div class="formula num">' + (r.manual ? "Manuell eingetragen" : esc(r.formula) + " → " + parts.join(" · ") + " = <b>" + fmt(r.raw, 2) + "</b> → " + r.final + " Punkte") + "</div>";
+    }
+    const req = lnReq(s, i, gs);
+    if (req) h += '<div class="formula">' + req + "</div>";
+    h += '<div class="grades">' + (gs.length ? gs.map(g => {
+      const cat = CATS[g.cat] || CATS.sonstige;
+      return '<div class="grade">' + chip(g.points, g.plan ? "plan" : "") + '<div class="t"><b>' + cat.label + (g.plan ? " · Prognose" : "") + (cat.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
+        (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
+        '<div class="actions"><button class="btn ghost sm" data-action="toggle-plan" data-id="' + s.id + '" data-g="' + g.id + '" title="Prognose umschalten">' + (g.plan ? "Echt" : "Prognose") + "</button>" +
+        '<button class="btn ghost sm danger" data-action="del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
+    }).join("") : '<div class="muted small">Trag oben deine erste Note für ' + L[i] + " ein.</div>") + "</div>";
+    // Bedarf
+    if (s.type === "standard" && (s.lf || i < 3) && r && !r.manual && r.gross == null && r.klein != null && r.prak == null) {
+      const need = [13, 10, 7, 5].map(t => { const n = Math.ceil(2 * (t - 0.5) - r.klein - 1e-9); return t + " P. → " + (n > 15 ? "nicht möglich" : Math.max(0, n)); });
+      h += '<div class="need">Benötigt in der Schulaufgabe/Klausur für eine Halbjahresleistung von: ' + need.join(" · ") + "</div>";
+    }
+    h += '<label class="field" style="max-width:260px"><span>Halbjahresleistung manuell überschreiben</span><select id="ov-' + s.id + "-" + i + '" data-action="override" data-id="' + s.id + '" data-h="' + i + '"><option value="">automatisch berechnen</option>' +
+      Array.from({ length: 16 }, (_, p) => 15 - p).map(p => '<option value="' + p + '"' + (s.override[i] === p ? " selected" : "") + ">" + p + " Punkte</option>").join("") + "</select></label></div>";
+  }
+  // Einstellungen
+  const edS = editing("subj:" + s.id);
+  const TYPES = [["standard", "Standard (große : kleine = 1 : 1)"], ["wseminar", "W-Seminar (nur kleine LN)"], ["sport", "Sport (Praxis doppelt)"]];
+  h += '<div class="card' + (edS ? " editing" : "") + '"><div class="card-head"><h3>Fach-Einstellungen</h3>' + editBar("subj:" + s.id) + "</div>";
+  if (!edS) {
+    const R = rulesFor(s), kv = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
+    const partner = s.group === "vk" ? findS(s.vkPartner) : null;
+    return h + '<dl class="kv">' + kv("Name", esc(s.name)) + kv("Kürzel", esc(s.short) || "–") +
+      kv("Berechnungsart", (TYPES.find(t => t[0] === s.type) || TYPES[0])[1]) + kv("Fachgruppe", grp(s).label) +
+      kv("Rolle", s.core ? "Leistungsfach (fest)" : s.lf ? "Weiteres Leistungsfach" : isAbi(s) ? "Abiturfach" : grp(s).abi ? "kein Abiturfach" : "kann kein Abiturfach sein") +
+      kv("Belegt in", L.filter((l, i) => s.hj[i]).join(", ") || "–") +
+      kv("Pflichteinbringungen", R.p + ' <span class="muted small">(' + esc(R.why) + ")</span>") + kv("Höchstens einbringbar", R.max) +
+      (s.group === "vk" ? kv("Partnerfach", partner ? esc(partner.name) : "keins") : "") + "</dl></div></div>";
+  }
+  h += '<div class="grid" style="gap:14px">' +
+    '<div class="form-row"><label class="field"><span>Name</span><input type="text" id="s-name" data-field="name" data-id="' + s.id + '" value="' + esc(s.name) + '"></label>' +
+    '<label class="field"><span>Kürzel</span><input type="text" id="s-short" data-field="short" data-id="' + s.id + '" value="' + esc(s.short) + '"></label>' +
+    '<label class="field"><span>Berechnungsart</span><select id="s-type" data-field="type" data-id="' + s.id + '">' +
+    TYPES.map(([v, l]) => '<option value="' + v + '"' + (s.type === v ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Pflichteinbringungen (leer = automatisch)</span><input type="number" min="0" max="4" id="s-p" data-field="pOv" data-id="' + s.id + '" value="' + (s.pOv ?? "") + '" placeholder="' + rulesFor(Object.assign({}, s, { pOv: null })).p + '"' + (isAbi(s) ? " disabled" : "") + "></label>" +
+    '<label class="field"><span>Höchstens einbringbar (leer = automatisch)</span><input type="number" min="0" max="4" id="s-max" data-field="maxOv" data-id="' + s.id + '" value="' + (s.maxOv ?? "") + '" placeholder="' + rulesFor(Object.assign({}, s, { maxOv: null })).max + '"' + (isAbi(s) ? " disabled" : "") + "></label></div>" +
+    '<div class="actions" style="gap:18px">' + (s.core
+      ? '<span class="small"><span class="badge lf">LF</span> Deutsch und Mathematik sind immer Leistungsfächer: schriftliches Abitur, alle Halbjahre Pflicht.</span>'
+      : (lfEligible(s) || s.lf ? '<label class="check"><input type="checkbox" id="s-lf" data-field="lf" data-id="' + s.id + '"' + (s.lf ? " checked" : "") + "> Als weiteres Leistungsfach wählen</label>" : "") +
+        '<span class="muted small">' + (s.lf ? "" : isAbi(s) ? "Abiturfach (im Tab Abitur gewählt): alle Halbjahre Pflicht." : grp(s).abi ? "Die zwei weiteren Abiturfächer wählst du im Tab Abitur." : "Kann kein Abiturfach sein.") + "</span>" +
+        '<label class="field" style="flex:1 1 260px"><span>Fachgruppe (für die Abiturregeln)</span><select id="s-group" data-field="group" data-id="' + s.id + '">' +
+        Object.entries(GROUPS).filter(([k]) => k !== "deutsch" && k !== "mathe").map(([k, g]) => '<option value="' + k + '"' + (s.group === k ? " selected" : "") + ">" + g.label + "</option>").join("") + "</select></label>") + "</div>" +
+    '<div class="actions" style="gap:18px"><span class="muted small">Belegt in:</span>' + L.map((l, i) => '<label class="check"><input type="checkbox" id="s-hj-' + i + '" data-field="hj" data-h="' + i + '" data-id="' + s.id + '"' + (s.hj[i] ? " checked" : "") + "> " + l + "</label>").join("") + "</div>" +
+    (/politik|geograph|wirtschaft und recht/i.test(s.name) ? '<p class="muted small" style="margin:0">PuG und Geographie bzw. WR werden in 12/1–12/2 belegt. Eines der drei Fächer führst du in 13/1–13/2 weiter: Dort setzt du die Haken.</p>' : "") +
+    (s.group === "vk" ? '<label class="field" style="max-width:420px"><span>Partnerfach (entfällt in Q13)</span><select id="s-vkp" data-field="vkPartner" data-id="' + s.id + '"><option value="">keins</option>' +
+      state.subjects.filter(x => x.id !== s.id && (s.vkFor === "D" ? ["fs", "fs_spaet"] : ["nw", "inf", "inf_spaet"]).includes(x.group)).map(x => '<option value="' + x.id + '"' + (s.vkPartner === x.id ? " selected" : "") + ">" + esc(x.name) + "</option>").join("") +
+      '</select></label><p class="muted small" style="margin:0">' + (s.vkFor === "D" ? "VK Deutsch ersetzt die 2. Fremdsprache in Q13." : "VK Mathematik ersetzt die 2. Naturwissenschaft bzw. Informatik in Q13.") + " Aus VK und Partnerfach werden zusammen 3 Halbjahresleistungen aus 12/1–12/2 eingebracht. Nimm beim Partnerfach die Haken bei 13/1 und 13/2 raus.</p>" : "") +
+    '<div class="actions">' + (ui.confirm === "del-" + s.id
+      ? '<span class="small">Fach mit allen ' + s.grades.length + ' Noten löschen?</span><button class="btn danger solid sm" data-action="del-subject" data-id="' + s.id + '">Ja, löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>'
+      : '<button class="btn danger sm" data-action="ask-del" data-id="' + s.id + '">Fach löschen</button>') + "</div></div></div>";
+  return h + "</div>";
+}
+
+/* ---- Abitur ---- */
+function viewAbitur() {
+  const c = computeAll();
+  const ptsOpts = (v, empty) => '<option value="">' + empty + "</option>" + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (v === p ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("");
+  let h = '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Seminararbeit</h2><span class="muted small">zählt wie 2 Halbjahresleistungen</span></div>' +
+    '<div class="form-row"><label class="field"><span>Schriftliche Arbeit</span><select id="sem-arbeit" data-action="sem" data-k="arbeit">' + ptsOpts(state.seminar.arbeit, "noch offen") + "</select></label>" +
+    '<label class="field"><span>Präsentation + Prüfungsgespräch</span><select id="sem-praes" data-action="sem" data-k="praes">' + ptsOpts(state.seminar.praes, "noch offen") + "</select></label></div>" +
+    '<p class="formula num" style="margin:12px 0 0">(3 × Arbeit + Präsentation) ÷ 2 = <b>' + (c.sem ? c.sem.pts : "–") + " / 30</b>" + (c.sem && c.sem.est ? " (Schätzung, ein Teil fehlt)" : "") + "</p>" +
+    '<p class="muted small" style="margin:8px 0 0">Abgabe spätestens am 2. Unterrichtstag im November (13/1). Arbeit und Präsentation brauchen je mind. 1 Punkt. Unter 9 Punkten zählt die Seminararbeit als 2 Unterpunktungen.</p></div>';
+  h += '<div class="card"><div class="card-head"><h2>Ergebnis</h2></div><div class="stats">' +
+    stat("Block I", c.block1 != null ? fmt(c.block1) + " <small>/ 600</small>" : "–", "") +
+    stat("Block II", c.block2 != null ? fmt(c.block2) + " <small>/ 300</small>" : "–", c.examsEntered < 5 ? "fehlende Prüfungen geschätzt" : "") +
+    stat("Gesamt", c.total != null ? fmt(c.total) + " <small>/ 900</small>" : "–", "") +
+    stat("Abischnitt", noteFromPoints(c.total) != null ? fmt(noteFromPoints(c.total), 1) : "–", "Tabelle Anlage 13 GSO") + "</div></div></section>";
+  // Leistungsfächer
+  const lf = chosenLf(), D = coreBy(/^deutsch/i), M = coreBy(/^mathe/i);
+  const lfOptions = state.subjects.filter(s => lfEligible(s) || s === lf);
+  const ed = editing("abi");
+  const SUBST = [["none", "keine (Deutsch und Mathematik werden geprüft)"], ["D", "Deutsch ersetzen (durch 2 fortgeführte Fremdsprachen)"], ["M", "Mathematik ersetzen (durch 2 NW bzw. NW + Informatik)"]];
+  const show = v => '<div style="padding:8px 0;font-weight:600">' + v + "</div>";
+  h += '<section class="card' + (ed ? " editing" : "") + '"><div class="card-head"><div><h2>Leistungsfächer &amp; Abiturfächer</h2><span class="muted small">Feste Fächerwahl: zum Ändern auf Bearbeiten tippen</span></div>' + editBar("abi") + "</div>" +
+    '<div class="form-row"><div class="field"><span>1. Leistungsfach</span>' + show(D ? esc(D.name) : '<span class="muted">Deutsch fehlt – im Tab Fächer anlegen</span>') + "</div>" +
+    '<div class="field"><span>2. Leistungsfach</span>' + show(M ? esc(M.name) : '<span class="muted">Mathematik fehlt – im Tab Fächer anlegen</span>') + "</div>" +
+    (ed ? '<label class="field"><span>Weiteres Leistungsfach</span><select id="lf-pick" data-action="lf"><option value="">Bitte auswählen</option>' +
+      lfOptions.map(s => '<option value="' + s.id + '"' + (lf && lf.id === s.id ? " selected" : "") + ">" + esc(s.name) + "</option>").join("") + "</select></label>"
+      : '<div class="field"><span>Weiteres Leistungsfach</span>' + show(lf ? esc(lf.name) : '<span class="muted">noch nicht gewählt</span>') + "</div>") +
+    (ed ? '<label class="field"><span>Substitution im Abitur</span><select id="subst" data-opt="subst">' + SUBST.map(([v, l]) => '<option value="' + v + '"' + (subst() === v ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>"
+      : '<div class="field"><span>Substitution im Abitur</span>' + show(esc(SUBST.find(x => x[0] === subst())[1])) + "</div>") + "</div>" +
+    (ed ? '<p class="muted small" style="margin:10px 0 0">' + (lfOptions.length ? (subst() === "D" ? "Bei Substitution von Deutsch muss das Leistungsfach eine fortgeführte Fremdsprache sein." : subst() === "M" ? "Bei Substitution von Mathematik muss das Leistungsfach eine Naturwissenschaft oder Informatik sein." :
+      "Nicht wählbar: Deutsch, Mathematik, spät beginnende Fremdsprache und Informatik" + (state.settings.kumuLf ? "." : ", Kunst und Musik (an deiner Schule nicht angeboten, änderbar unter Optionen).")) + " Das Fach muss in allen 4 Halbjahren belegt sein. Prüfungsfächer und Prüfungsart stellst du unten in der Tabelle ein." : "Leg zuerst deine anderen Fächer an, dann kannst du hier wählen.") + "</p>" : "") + "</section>";
+
+  h += '<section class="card' + (ed ? " editing" : "") + '"><div class="card-head"><div><h2>Abiturprüfungen</h2><span class="muted small">3 schriftlich (Festlegung bis 31. Januar in Q13), 2 mündlich (bis 6 Wochen vor dem schriftlichen Abitur) · jede Prüfung zählt vierfach · Punkte kannst du jederzeit eintragen</span></div>' + editBar("abi") + "</div>" +
+    '<div class="tbl-wrap"><table><thead><tr><th>Nr.</th><th>Fach</th><th>Art</th><th>Punkte</th><th>Zusatzprüfung</th><th class="r">× 4</th></tr></thead><tbody>';
+  const ids = [0, 1, 2, 3, 4].map(examSubjectId);
+  state.exams.forEach((e, i) => {
+    const est = c.examEst[i];
+    let cell;
+    if (!examPickable(i) || !ed) {
+      const s = findS(ids[i]);
+      cell = '<div class="small muted">' + examRowLabel(i) + "</div>" + (s ? "<b>" + esc(s.name) + "</b>" + (s.lf ? ' <span class="badge lf">LF</span>' : "") : '<span class="muted">' + (i === 2 ? "oben auswählen" : examPickable(i) ? "noch nicht gewählt" : "im Tab Fächer anlegen") + "</span>");
+    } else {
+      cell = '<div class="small muted">' + examRowLabel(i) + '</div><select id="ex-s-' + i + '" data-action="exam" data-i="' + i + '" data-k="subjectId"><option value="">Fach wählen</option>' +
+        state.subjects.filter(s => (rowEligible(i, s) && !ids.some((id, j) => j !== i && id === s.id)) || s.id === e.subjectId).map(s => '<option value="' + s.id + '"' + (e.subjectId === s.id ? " selected" : "") + ">" + esc(s.name) + "</option>").join("") + "</select>";
+    }
+    const fa = forcedArt(i), art = effArt(i);
+    const artCell = fa ? art + ' <span class="muted small">(vorgegeben)</span>' : !ed ? art
+      : '<select id="ex-a-' + i + '" data-action="exam" data-i="' + i + '" data-k="art">' + ["schriftlich", "mündlich"].map(a => "<option" + (art === a ? " selected" : "") + ">" + a + "</option>").join("") + "</select>";
+    const zCell = art === "schriftlich" ? '<select id="ex-z-' + i + '" data-action="exam" data-i="' + i + '" data-k="zusatz">' + ptsOpts(e.zusatz, "keine") + "</select>" : '<span class="muted small">–</span>';
+    h += "<tr><td class=\"num\">" + (i + 1) + ".</td><td>" + cell + "</td>" +
+      "<td>" + artCell + "</td>" +
+      '<td><select id="ex-p-' + i + '" data-action="exam" data-i="' + i + '" data-k="points">' + ptsOpts(e.points, "noch offen") + "</select></td>" +
+      "<td>" + zCell + "</td>" +
+      '<td class="r num">' + (!est.est ? "<b>" + est.v4 + "</b>" : est.v4 != null ? '<span class="muted">≈ ' + fmt(est.v4) + "</span>" : "–") + "</td></tr>";
+  });
+  h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Leere Punktfelder werden über deinen Fachschnitt geschätzt. Eine mündliche Zusatzprüfung ist nur in den schriftlichen Fächern möglich und zählt 2 : 1 (schriftlich : mündlich). Spät beginnende Fremdsprache und Informatik gehen nur als Kolloquium' + (state.settings.kumuLf ? "" : ", Kunst und Musik an deiner Schule ebenfalls nur als Kolloquium") + ". Sport ist nur als Leistungsfach Prüfungsfach, schriftlich oder mündlich plus Fachpraxis.</p></section>";
+  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Regeln für deine Fächerwahl</h2><span class="muted small">§ 48 GSO · Handout PuLSt</span></div>' + checkList(abiChecks()) + "</div>";
+  const b2 = blockIIChecks();
+  h += '<div class="card"><div class="card-head"><h2>Bestehen der Abiturprüfung</h2><span class="muted small">Punktehürden Block II, vierfache Wertung</span></div>' +
+    (b2.length ? checkList(b2) : '<p class="muted small" style="margin:0">Sobald alle 5 Ergebnisse eingetragen sind, prüft der Rechner:</p><ul class="small muted" style="margin:8px 0 0;padding-left:18px"><li>alle 5 zusammen mind. 100 Punkte</li><li>mind. 3 Prüfungen mit je 20 Punkten, darunter D, M oder LF</li><li>D + M + Fremdsprache/NW mind. 40, nur einmal unter 16</li><li>pro Aufgabenfeld nur einmal unter 16</li><li>in jeder Prüfung mind. 4 Punkte</li></ul>') + "</div></section>";
+  return h;
+}
+
+/* ---- Optionen ---- */
+function viewOptions() {
+  const L = hjLabels();
+  const edB = editing("base");
+  let h = '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
+    (edB
+      ? '<div class="grid" style="gap:14px"><label class="field" style="max-width:320px"><span>Jahrgangsstufen</span><select id="o-labels" data-opt="labels"><option value="g9"' + (state.settings.labels === "g9" ? " selected" : "") + ">12/1 – 13/2 (G9)</option><option value=\"g8\"" + (state.settings.labels === "g8" ? " selected" : "") + ">11/1 – 12/2 (G8)</option></select></label>" +
+        '<label class="check"><input type="checkbox" id="o-kumu" data-opt="kumuLf"' + (state.settings.kumuLf ? " checked" : "") + "> Meine Schule bietet Kunst/Musik als Leistungsfach an (sonst nur Kolloquium)</label></div>"
+      : '<dl class="kv"><div><dt>Jahrgangsstufen</dt><dd>' + (state.settings.labels === "g8" ? "11/1 – 12/2 (G8)" : "12/1 – 13/2 (G9)") + "</dd></div>" +
+        "<div><dt>Kunst/Musik als Leistungsfach</dt><dd>" + (state.settings.kumuLf ? "an meiner Schule angeboten" : "nicht angeboten (nur Kolloquium)") + "</dd></div></dl>") + "</section>";
+  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
+    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="o-cur" data-opt="currentHj">' + L.map((l, i) => '<option value="' + i + '"' + (state.settings.currentHj === i ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label></div>" +
+    '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>" +
+    '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
+    '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
+    '<div class="card"><div class="card-head"><h2>Daten</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
+    '<div class="actions"><button class="btn" data-action="export">Backup herunterladen</button><button class="btn" data-action="copy">In Zwischenablage kopieren</button></div>' +
+    '<label class="field"><span>Backup einfügen (JSON) oder Datei wählen</span><textarea id="import-text" placeholder="{ &quot;v&quot;: 1, … }"></textarea></label>' +
+    '<div class="actions"><input type="file" id="import-file" accept=".json,application/json" style="max-width:100%"><button class="btn primary" data-action="import">Importieren</button></div>' +
+    '<div class="actions">' + (ui.confirm === "reset" ? '<span class="small">Alle Fächer und Noten löschen?</span><button class="btn danger solid sm" data-action="reset">Ja, alles löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>' : '<button class="btn danger sm" data-action="ask-reset">Alle Daten löschen</button>') + "</div></div></div></section>";
+  h += '<section class="card"><div class="card-head"><h2>Punkte und Noten</h2></div><div class="ptable">' +
+    Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
+  h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
+    "<li><b>Halbjahresleistung</b> (§ 29 Abs. 2 GSO): Durchschnitt aus der Schulaufgabe bzw. Klausur und dem Durchschnitt der kleinen Leistungsnachweise, also 1 : 1. Gibt es mehrere große Leistungsnachweise, wird ihr Durchschnitt genommen. Gerundet wird kaufmännisch, auf 1 Punkt darf aber nicht aufgerundet werden. Vorgabe: 1 Schulaufgabe und mind. 2 kleine Leistungsnachweise, davon mind. 1 mündlich. In Fächern auf grundlegendem Niveau zählen in 13/2 nur die kleinen Leistungsnachweise (mind. 1 schriftlich, 1 mündlich).</li>" +
+    "<li><b>Kleine Leistungsnachweise</b> (Exen, Abfragen, Referate, mündliche Noten) zählen untereinander gleich. Wenn deine Lehrkraft anders gewichtet, stell das Gewicht bei der Note ein.</li>" +
+    "<li><b>Kunst/Musik als Leistungsfach</b>: Schulaufgabe, Projekt bzw. Praxis und Ø kleine zu gleichen Teilen. <b>Sport</b>: (2 × Ø Praxis + Ø kleine) ÷ 3, im Leistungsfach zusätzlich 1 : 1 mit der Theorie. <b>W-Seminar</b>: nur kleine Leistungsnachweise.</li>" +
+    "<li><b>Einbringung</b>: 40 Halbjahresleistungen. Pflicht sind:<ul>" +
+    "<li>Deutsch, Mathematik, Leistungsfach und die Abiturfächer: alle 4</li>" +
+    "<li>andere Pflicht- und Wahlpflichtfächer: Belegung minus eins</li>" +
+    "<li>Fremdsprachen zusammen mind. 4, Naturwissenschaften zusammen mind. 4</li>" +
+    "<li>Sport ohne Leistungsfach: 0, höchstens 3; Zusatzangebot: 0, höchstens 3 je Fach</li>" +
+    "<li>Vertiefungskurs + 2. Fremdsprache bzw. 2. NW/Informatik: zusammen 3 aus 12/1–12/2</li>" +
+    "<li>W-Seminar: 2; Seminararbeit: zählt wie 2 Halbjahresleistungen, (3 × Arbeit + Präsentation) ÷ 2</li></ul>" +
+    "Die restlichen Plätze füllt der Rechner mit deinen besten Ergebnissen.</li>" +
+    "<li><b>Zulassung</b>: D + M + LF zusammen mind. 48 Punkte, die 5 Abiturfächer mind. 100, alle 40 Einbringungen mind. 200. Mind. 32 Einbringungen mit je 5 Punkten (die Seminararbeit braucht dafür 9). In keinem Pflichtkurs, im W-Seminar und in Seminararbeit und Präsentation darf es 0 Punkte geben.</li>" +
+    "<li><b>Abiturfächer</b> (§ 48 GSO): Deutsch, Mathematik und dein weiteres Leistungsfach sind Pflicht, dazu wählst du 2 weitere Fächer. 3 Fächer werden schriftlich geprüft, 2 mündlich (Kolloquium), mindestens 2 der 3 Leistungsfächer schriftlich. Unter den fünf muss eine fortgeführte Fremdsprache oder Naturwissenschaft und ein gesellschaftswissenschaftliches Fach sein, alle drei Aufgabenfelder müssen abgedeckt und alle Fächer in allen 4 Halbjahren belegt sein. Substitution: Deutsch kann durch zwei fortgeführte Fremdsprachen ersetzt werden (eine davon Leistungsfach, Mathematik dann schriftlich). Mathematik kann durch zwei Naturwissenschaften bzw. NW + Informatik ersetzt werden (eine davon Leistungsfach, Deutsch dann schriftlich, dazu eine Fremdsprache).</li>" +
+    "<li><b>Abiturprüfung</b>: 5 Prüfungen, jede vierfach, maximal 300 Punkte. Gesamt maximal 900 Punkte. Bestanden mit: zusammen mind. 100; mind. 3 Prüfungen mit je 20, darunter D, M oder LF; D + M + Fremdsprache/NW mind. 40 und nur einmal unter 16; pro Aufgabenfeld nur einmal unter 16; jede Prüfung mind. 4. Mündliche Zusatzprüfung in schriftlichen Fächern: Gewichtung 2 : 1.</li>" +
+    "<li><b>Abischnitt</b> (Anlage 13 GSO): 823–900 Punkte = 1,0, danach alle 18 Punkte eine Zehntelnote, 300 Punkte = 4,0. Unter 300 Punkten ist das Abitur nicht bestanden.</li>" +
+    "<li>Solange nicht alle Noten feststehen, wird <b>hochgerechnet</b>: Block I aus dem Schnitt deiner bisher eingebrachten Leistungen, fehlende Prüfungen aus deinem Fachschnitt.</li></ul>" +
+    '<p class="muted small">Ohne Gewähr. Verbindlich sind die Gymnasialschulordnung und deine Schule. Quellen: <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-29" target="_blank" rel="noopener">§ 29 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-44" target="_blank" rel="noopener">§ 44 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-48" target="_blank" rel="noopener">§ 48 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-53" target="_blank" rel="noopener">§ 53 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_17" target="_blank" rel="noopener">Anlage 10</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_23" target="_blank" rel="noopener">Anlage 13</a>, <a href="https://www.gymnasiale-oberstufe.bayern.de/" target="_blank" rel="noopener">gymnasiale-oberstufe.bayern.de</a>.</p></section>';
+  return h;
+}
+
+/* ================= Aktionen ================= */
+function findS(id) { return state.subjects.find(s => s.id === id); }
+
+/* ---- Bearbeiten/Speichern für feste Einstellungen ---- */
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const ICON_SAVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
+const CFG_KEYS = ["name", "short", "type", "lf", "group", "pOv", "maxOv", "hj", "vkPartner"];
+function snapConfig() {
+  return JSON.stringify({
+    s: { subst: state.settings.subst, kumuLf: state.settings.kumuLf, labels: state.settings.labels },
+    e: state.exams.map(e => ({ subjectId: e.subjectId, art: e.art })),
+    sub: state.subjects.map(s => { const o = { id: s.id }; CFG_KEYS.forEach(k => { o[k] = s[k]; }); return o; })
+  });
+}
+function restoreConfig(str) {
+  const c = JSON.parse(str);
+  Object.assign(state.settings, c.s);
+  c.e.forEach((x, i) => Object.assign(state.exams[i], x));
+  c.sub.forEach(o => { const s = findS(o.id); if (s) Object.assign(s, o); });
+}
+function editing(key) { return !!(ui.edit && ui.edit.key === key); }
+function editBar(key) {
+  if (editing(key)) return '<div class="actions"><span class="edit-note">Bearbeitungsmodus</span><button class="btn sm" data-action="edit-cancel">Abbrechen</button><button class="btn primary sm" data-action="edit-save">' + ICON_SAVE + " Speichern</button></div>";
+  return '<button class="btn sm" data-action="edit-start" data-key="' + key + '"' + (ui.edit ? ' disabled title="Speichere zuerst die andere Bearbeitung"' : "") + ">" + ICON_EDIT + " Bearbeiten</button>";
+}
+// Änderung an einer gesperrten Einstellung: nur vormerken, gespeichert wird mit „Speichern“
+function stage(el) {
+  if (!ui.edit) { commit(); return; }
+  if (el && (el.type === "text" || el.type === "number")) return; // kein Neuaufbau beim Verlassen des Feldes
+  render();
+}
+// genau ein weiteres Leistungsfach neben Deutsch und Mathematik
+function setLf(id) {
+  state.subjects.forEach(x => { if (!x.core) x.lf = x.id === id; });
+  state.exams.forEach((e, i) => { if (i >= 3 && e.subjectId === id) e.subjectId = null; });
+}
+function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 2600); }
+function newSubjectFrom(t) {
+  return fixSubject({ id: uid(), name: t.name, short: t.short || "", type: t.type || "standard", core: !!t.core, lf: !!t.core, group: t.g || "none", vkFor: t.vkFor || null, max: t.max ?? null, hj: t.hj ? t.hj.slice() : [true, true, true, true] });
+}
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-action]");
+  if (!el || el.tagName === "SELECT") return;
+  const a = el.dataset.action, s = el.dataset.id ? findS(el.dataset.id) : null;
+  switch (a) {
+    case "open-add": ui.showAdd = true; break;
+    case "toggle-add": ui.showAdd = !ui.showAdd; render(); return;
+    case "select": ui.selected = el.dataset.id; saveUi(); if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); return;
+    case "add-subjects": {
+      e.preventDefault();
+      const picked = [...document.querySelectorAll("[data-tpl]:checked")].map(x => newSubjectFrom(TEMPLATES[+x.dataset.tpl]));
+      const custom = document.getElementById("custom-name").value.trim();
+      if (custom) picked.push(newSubjectFrom({ name: custom, short: custom.slice(0, 3), p: 0, g: document.getElementById("custom-group").value }));
+      if (!picked.length) { toast("Wähle mindestens ein Fach aus."); return; }
+      state.subjects.push(...picked); ui.showAdd = false; ui.selected = picked[0].id; saveUi();
+      commit(); toast(picked.length === 1 ? "Fach angelegt" : picked.length + " Fächer angelegt"); return;
+    }
+    case "del-grade": s.grades = s.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return;
+    case "toggle-plan": { const g = s.grades.find(g => g.id === el.dataset.g); g.plan = !g.plan; commit(); return; }
+    case "ask-del": ui.confirm = "del-" + s.id; render(); return;
+    case "ask-reset": ui.confirm = "reset"; render(); return;
+    case "cancel-confirm": ui.confirm = null; render(); return;
+    case "del-subject": ui.edit = null; state.subjects = state.subjects.filter(x => x.id !== s.id); state.exams.forEach(x => { if (x.subjectId === s.id) x.subjectId = null; }); ui.confirm = null; ui.selected = null; commit(); toast("Fach gelöscht"); return;
+    case "reset": { const keep = state.settings; state = defaultState(); state.settings = keep; ui.confirm = null; commit(); toast("Alle Daten gelöscht"); return; }
+    case "edit-start":
+      if (!ui.edit) { const k = el.dataset.key; ui.edit = { key: k, backup: k === "admin" ? JSON.stringify(ui.adminVault) : snapConfig() }; ui.confirm = null; ui.adminNew = null; ui.adminConfirmDel = null; }
+      render(); return;
+    case "edit-save":
+      if (ui.edit && ui.edit.key === "admin") {
+        if (ui.adminBusy) return;
+        ui.adminBusy = true;
+        saveCodeList().then(() => { ui.edit = null; toast("Codeliste gespeichert"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+        return;
+      }
+      ui.edit = null; ui.confirm = null; commit(); toast("Gespeichert"); return;
+    case "edit-cancel":
+      if (ui.edit && ui.edit.key === "admin") { ui.adminVault = JSON.parse(ui.edit.backup); ui.edit = null; render(); toast("Änderungen verworfen"); return; }
+      if (ui.edit) restoreConfig(ui.edit.backup); ui.edit = null; ui.confirm = null; commit(); toast("Änderungen verworfen"); return;
+    case "admin-create": {
+      if (ui.adminBusy || !ui.adminVault) return;
+      const note = (document.getElementById("admin-new-note").value || "").trim();
+      const name = (document.getElementById("admin-new-name").value || "").trim();
+      ui.adminBusy = true; render();
+      createCode(name, note).then(e => toast("Neuer Code für " + (e.name || "Profil " + e.nr) + ": " + fmtCode(e.code)), err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      return;
+    }
+    case "admin-delete-ask": ui.adminConfirmDel = +el.dataset.nr; ui.adminNew = null; render(); return;
+    case "admin-delete-cancel": ui.adminConfirmDel = null; render(); return;
+    case "admin-delete": {
+      if (ui.adminBusy) return;
+      const nr = +el.dataset.nr;
+      ui.adminBusy = true; render();
+      deleteCode(nr).then(e => { ui.adminConfirmDel = null; if (e) toast((e.name || "Profil " + e.nr) + " wurde gelöscht"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      return;
+    }
+    case "copy-code": {
+      const txt = el.dataset.code;
+      try { navigator.clipboard.writeText(txt).then(() => toast("Code kopiert: " + txt), () => toast("Kopieren nicht möglich – Code: " + txt)); } catch (err) { toast("Code: " + txt); }
+      return;
+    }
+    case "logout": logout(); toast("Abgemeldet"); return;
+    case "admin-auth-logout": adminSignOut().then(() => { render(); toast("Admin abgemeldet"); }); return;
+    case "import-legacy": {
+      if (!legacy) return;
+      state = migrate(JSON.parse(JSON.stringify(legacy)));
+      legacy = null; writeLS(LS_LEGACY_DONE, "1");
+      commit(); toast("Bisherige Noten übernommen"); return;
+    }
+    case "export": doExport(); return;
+    case "copy": doCopy(); return;
+    case "import": doImport(); return;
+  }
+});
+document.addEventListener("submit", e => {
+  if (e.target.id !== "grade-form") return;
+  e.preventDefault();
+  const s = findS(e.target.dataset.id);
+  const cat = document.getElementById("g-cat").value;
+  const w = parseFloat(document.getElementById("g-w").value);
+  s.grades.push({ id: uid(), hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
+    weight: CATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("g-date").value || "",
+    note: document.getElementById("g-note").value.trim(), plan: document.getElementById("g-plan").checked });
+  ui.lastCat = cat;
+  commit(); toast("Note eingetragen");
+});
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.dataset.action === "admin-name") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) { en.name = el.value.trim().slice(0, 40); en.nameDirty = true; } return; }
+  if (el.dataset.action === "admin-note") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) en.note = el.value.trim(); return; }
+  if (el.dataset.action === "admin-block") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en && en.nr !== ADMIN_NR) en.blocked = el.checked; render(); return; }
+  if (el.dataset.action === "lf") { setLf(el.value || null); stage(el); return; }
+  if (el.dataset.action === "target") { ui.target = parseFloat(el.value); render(); return; }
+  if (el.dataset.action === "override") { const s = findS(el.dataset.id); s.override[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); return; }
+  if (el.dataset.action === "sem") { state.seminar[el.dataset.k] = el.value === "" ? null : +el.value; commit(); return; }
+  if (el.dataset.action === "exam") { const ex = state.exams[+el.dataset.i], k = el.dataset.k; ex[k] = k === "points" || k === "zusatz" ? (el.value === "" ? null : +el.value) : (el.value || null); if (k === "art") ex.art = el.value; if (k === "subjectId" || k === "art") stage(el); else commit(); return; }
+  if (el.dataset.opt) { const k = el.dataset.opt; state.settings[k] = el.type === "checkbox" ? el.checked : (k === "currentHj" ? +el.value : el.value); if (["subst", "kumuLf", "labels"].includes(k)) stage(el); else commit(); return; }
+  if (el.dataset.field) {
+    const s = findS(el.dataset.id), f = el.dataset.field;
+    if (f === "hj") s.hj[+el.dataset.h] = el.checked;
+    else if (f === "lf") setLf(el.checked ? s.id : null);
+    else if (f === "pOv" || f === "maxOv") s[f] = el.value === "" ? null : Math.max(0, Math.min(4, parseInt(el.value, 10) || 0));
+    else if (f === "vkPartner") s.vkPartner = el.value || null;
+    else if (f === "name") s.name = el.value.trim() || s.name;
+    else s[f] = el.value;
+    stage(el);
+  }
+});
+window.addEventListener("hashchange", () => { ui.confirm = null; render(); window.scrollTo(0, 0); });
+
+function backupJson() { return JSON.stringify(state, null, 2); }
+async function doExport() {
+  const name = "notenmanager-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  try {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([backupJson()], { type: "application/json" }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  } catch (err) { doCopy(); }
+}
+function doCopy() {
+  const txt = backupJson();
+  const fallback = () => { const ta = document.getElementById("import-text"); if (ta) { ta.value = txt; ta.select(); } toast("Backup steht im Textfeld – kopiere es mit Strg+C"); };
+  try { navigator.clipboard.writeText(txt).then(() => toast("Backup in die Zwischenablage kopiert"), fallback); } catch (err) { fallback(); }
+}
+function doImport() {
+  const f = document.getElementById("import-file").files[0];
+  const apply = txt => {
+    try { const s = JSON.parse(txt); if (!s || !Array.isArray(s.subjects)) throw new Error(); state = migrate(s); commit(); toast("Backup importiert: " + state.subjects.length + " Fächer"); }
+    catch (err) { toast("Das ist kein gültiges Backup. Erwartet wird die JSON-Datei aus „Backup herunterladen“."); }
+  };
+  if (f) { const r = new FileReader(); r.onload = () => apply(r.result); r.readAsText(f); }
+  else { const t = document.getElementById("import-text").value.trim(); if (!t) { toast("Füge ein Backup ein oder wähle eine Datei."); return; } apply(t); }
+}
+
+/* ================= Anmeldecodes & Verschlüsselung ================= */
+// Nur Prüfsummen der Codes (SHA-256 von "nm-code:" + Code), die Codes selbst stehen nicht im Quelltext
+const CODE_HASHES = ["84c60f6930bf8dc909d4313f9e78338245df881933540b3c5bd725382b00b92e", "adb834fca84413f6e3c727e044d6fd0937a8acaa9af0fcfe7a52ec52ffc9dbe8", "ac2953bfa592b639d2e9056e2705ba7ff8208d59fc88078b4a8c3a76d6bac640", "ad0bf7b1064beaf3acfa063ab3d7d9f13df6772e82ab8c9ad434db8031e21771", "33dc186868173fd1c156a9ae4258960a736d80627f0b53d6766cabd8f76b393c", "3bc3749dc992e618e7b54c6e2aebbd20a1effcf52242d458feeb07f6c5f036b3", "dea7b3e8576d3b09ee3cb8d837107405a171849d62cbca4c305cbb3fd65474b9", "2f6e210d807f40ccb7488c34d3bb6764bc673382852195766ea5a8d7c74b7137", "d9ee4a844772c5a3e96185dcecd188830f8c01d69d97d1ee980911153f0cc669", "e6b432312cdbf1e8e09d1e17ea79f6cdaf5a50ef4b6e88e9e75efe2e620ecf71", "846968eed418b1dd15a773ee6ed92a2b0ea45cd6b758f195863d1b1bdf22ce22", "c86a5cfdbd8e449f315cdf424dda85c8b4f7d95f4745ab13d2ecba9e2c32c755", "8bf7f34e7f11b9ebdf7b7d59f444348ef5df2e8a1105fb1cd4c35e763ca6ab0d", "caecfeb475f4ed375cb8e39908040a5403a722236bb56cdd71200b7325ede1fc", "ebf34101c91dfd7dd1fad83bf951904f510bd52089d60448525bb936a7b217f8", "cd7c3556e2ab4863a9b37e3d3aab7f44d40183d9f2f779a609eb2a812a254bce", "f2627079cce4d3db58b792446301e226853c7e09ee80c803c063ec0fbd7794fc", "421e6c4b23ff6d0e53d9386e2de45380eea4142a152d9c348184ed0cdcc46ad5", "4900831d1f8f4126765c305a41498f5ac824291a5e3b3cf71e23378900bf8154", "acd8eec51fdc10b049208a532584611bf3a5fb60d3ac3037333fd667f794c549"];
+const LS_SESSION = "notenmanager-session-v1", LS_PREFIX = "notenmanager-profil-v1:";
+const TE = new TextEncoder(), TD = new TextDecoder();
+function toB64(u8) { let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function fromB64(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function sha256hex(str) { const h = await crypto.subtle.digest("SHA-256", TE.encode(str)); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join(""); }
+async function deriveKey(code) {
+  const base = await crypto.subtle.importKey("raw", TE.encode(code), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: TE.encode("notenmanager-oberstufe-v1"), iterations: 150000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+async function encryptObj(key, obj) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, TE.encode(JSON.stringify(obj)));
+  return { iv: toB64(iv), ct: toB64(new Uint8Array(ct)) };
+}
+async function decryptObj(key, p) { const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(p.iv) }, key, fromB64(p.ct)); return JSON.parse(TD.decode(pt)); }
+function normCode(c) { return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+
+async function login(code, remember) {
+  const n = normCode(code);
+  if (!window.crypto || !crypto.subtle) throw new Error("Die verschlüsselte Anmeldung braucht eine sichere Verbindung (https). Öffne den Notenmanager über seinen Link.");
+  if (n.length !== 12) throw new Error("Ein Code hat 12 Zeichen, zum Beispiel ABCD-EFGH-JKMN.");
+  const h = await sha256hex("nm-code:" + n);
+  await fetchCodeList();
+  if (codeList.blocked.includes(h)) throw new Error("Dieser Code wurde gesperrt. Wende dich an die Person, die dir den Code gegeben hat.");
+  const idx = codeList.deleted.includes(h) ? -1 : CODE_HASHES.indexOf(h), extra = codeList.extra.find(x => x.h === h);
+  const nr = idx >= 0 ? idx + 1 : extra ? extra.nr : null;
+  if (nr == null) throw new Error("Diesen Code gibt es nicht. Prüf die Schreibweise.");
+  const docId = (await sha256hex("nm-doc:" + n)).slice(0, 40);
+  const key = await deriveKey(n);
+  let name = "";
+  if (codeList.names[h]) { try { name = String(await decryptObj(key, codeList.names[h]) || ""); } catch (e) {} }
+  session = { nr, docId, key, name, admin: nr === ADMIN_NR };
+  ui.adminVault = null; ui.adminLoading = false; ui.adminError = "";
+  if (remember) writeLS(LS_SESSION, n); else removeLS(LS_SESSION);
+  await openProfile();
+}
+/* ================= Admin: Codes verwalten (nur Profil 1) ================= */
+const ADMIN_NR = 1, CODES_DOC = "nm-codes/list", CODE_ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+// Die 20 Startcodes, verschlüsselt mit dem Admin-Code
+const SEED_VAULT = { iv: "Wm9icJZTH6G5pnfZ", ct: "PEvKsgXKW5u1i7lyy2wbn+tbirv187bk9h7/WJyDCDabI3SON+u4cxbgdSpH/EJtxRr6aGhXHFivxH6oh/HQnTrJtRaqFH26hT6eCV3reddhPAyDuKbwr/1EnmQttJMh0oEv6dkjaTj4ulE4N0Y2memZHCUBpIyl7hQVRP1OgzaRWvCPdAZ5LWp8hKHYNfGnnkrPpPGQcoM7P2FQJFjMDGArTQs1Mg7PJNFgSdar9C81CsoBaxRA7IBexzgqaq2bsqORGghskU00pPL145sgJKrdL569Acv3CBQlveRNrA8ae8QuZejKaONIoiPDWMmDTVKu7mDTms01Xx1sGkxOBXcO" };
+// Geteilte Codeliste: Prüfsummen neuer Codes, gesperrte Codes, verschlüsselte Liste für den Admin
+// names: Anzeigename je Code, verschlüsselt mit dem Code der jeweiligen Person; deleted: gelöschte Startcodes
+let codeList = { extra: [], blocked: [], deleted: [], names: {}, vault: null }, codeListMissing = false;
+function withTimeout(p, ms) { return Promise.race([p, new Promise(res => setTimeout(() => res(null), ms))]); }
+function fmtCode(n) { return n.slice(0, 4) + "-" + n.slice(4, 8) + "-" + n.slice(8); }
+function randomCodeStr() {
+  let s = "";
+  while (s.length < 12) for (const x of crypto.getRandomValues(new Uint8Array(16))) if (x < 248 && s.length < 12) s += CODE_ALPHA[x % 31];
+  return s;
+}
+async function fetchCodeList() {
+  const d = await withTimeout(getDb(), 12000);
+  if (!d) return false;
+  try {
+    const snap = await withTimeout(d.doc(CODES_DOC).get(), 8000);
+    if (!snap) return false;
+    codeListMissing = !snap.exists;
+    const x = snap.exists ? snap.data() : (MIGRATION_CODES || {});
+    codeList = {
+      extra: Array.isArray(x.extra) ? x.extra.map(e => ({ h: e.h, nr: e.nr })) : [],
+      blocked: Array.isArray(x.blocked) ? x.blocked.slice() : [],
+      deleted: Array.isArray(x.deleted) ? x.deleted.slice() : [],
+      names: x.names && typeof x.names === "object" ? JSON.parse(JSON.stringify(x.names)) : {},
+      vault: x.vault ? { iv: x.vault.iv, ct: x.vault.ct } : null
+    };
+    return true;
+  } catch (e) { return false; }
+}
+async function loadAdminVault() {
+  const my = session;
+  ui.adminLoading = true; ui.adminError = "";
+  await fetchCodeList();
+  let entries = null;
+  try {
+    if (codeList.vault) entries = await decryptObj(my.key, codeList.vault);
+    else {
+      const s = await decryptObj(my.key, SEED_VAULT);
+      entries = [];
+      for (let i = 0; i < 20; i++) entries.push({ nr: i + 1, code: s.slice(i * 12, i * 12 + 12), name: "", note: i === 0 ? "Admin" : "", created: null, blocked: false });
+    }
+    for (const e of entries) { e.h = await sha256hex("nm-code:" + e.code); e.blocked = codeList.blocked.includes(e.h); if (e.name == null) e.name = ""; }
+    entries = entries.filter(e => !codeList.deleted.includes(e.h));
+  } catch (e) { entries = null; ui.adminError = "Die Codeliste konnte nicht entschlüsselt werden."; }
+  if (session !== my) return;
+  await getAuthApi();
+  if (entries && codeListMissing && MIGRATION_CODES && isFbAdmin()) {
+    try { const dm = await getDb(); if (dm) { await dm.doc(CODES_DOC).set(MIGRATION_CODES); codeListMissing = false; } } catch (e) {}
+  }
+  ui.adminVault = entries; ui.adminLoading = false; ui.adminSeen = {};
+  render();
+  // Wann wurde welches Profil zuletzt gespeichert? (nur Zeitstempel, die Noten bleiben verschlüsselt)
+  const d = await getDb();
+  if (!d || !entries) return;
+  await Promise.all(entries.map(async e => {
+    try {
+      const id = (await sha256hex("nm-doc:" + e.code)).slice(0, 40);
+      const s = await withTimeout(d.doc("nm/" + id).get(), 8000);
+      if (s && s.exists) ui.adminSeen[e.nr] = s.data().updatedAt || 0;
+    } catch (x) {}
+  }));
+  if (session === my && currentTab() === "admin" && !editing("admin")) render();
+}
+async function saveCodeList() {
+  const d = await getDb();
+  if (!d) throw new Error("Keine Verbindung zur Datenbank. Versuch es später nochmal.");
+  await getAuthApi();
+  if (!isFbAdmin()) throw new Error("Melde dich zuerst oben im Admin-Bereich mit deinem Admin-Konto an.");
+  const list = ui.adminVault.map(({ nr, code, name, note, created, blocked }) => ({ nr, code, name: name || "", note: note || "", created: created || null, blocked: !!blocked }));
+  const vault = await encryptObj(session.key, list);
+  const blocked = ui.adminVault.filter(e => e.blocked && e.nr !== ADMIN_NR).map(e => e.h);
+  const extra = ui.adminVault.filter(e => e.nr > 20).map(e => ({ h: e.h, nr: e.nr }));
+  // Namen mit dem Code der jeweiligen Person verschlüsseln (nur geänderte neu berechnen)
+  const names = {};
+  for (const e of ui.adminVault) {
+    if (!e.name) continue;
+    names[e.h] = (!e.nameDirty && codeList.names[e.h]) ? codeList.names[e.h] : await encryptObj(await deriveKey(e.code), e.name);
+  }
+  const deleted = (codeList.deleted || []).slice();
+  try { await d.doc(CODES_DOC).set({ v: 1, updatedAt: Date.now(), extra, blocked, deleted, names, vault }); }
+  catch (err) { throw new Error(err && err.code === "invalid_argument" ? "Keine Berechtigung. Melde dich oben im Admin-Bereich erneut an." : "Speichern fehlgeschlagen. Versuch es nochmal."); }
+  codeList = { extra, blocked, deleted, names, vault };
+  ui.adminVault.forEach(e => { delete e.nameDirty; });
+  const me = ui.adminVault.find(e => e.nr === session.nr);
+  if (me) { session.name = me.name || ""; updateHeader(); }
+}
+// Code endgültig löschen: aus der Liste entfernen, Startcodes dauerhaft sperren, gespeicherte Noten löschen
+async function deleteCode(nr) {
+  const i = ui.adminVault.findIndex(e => e.nr === nr);
+  if (i < 0 || nr === ADMIN_NR) return;
+  const [entry] = ui.adminVault.splice(i, 1);
+  const prevDeleted = (codeList.deleted || []).slice();
+  if (nr <= 20 && !codeList.deleted.includes(entry.h)) codeList.deleted.push(entry.h);
+  try { await saveCodeList(); }
+  catch (err) { ui.adminVault.splice(i, 0, entry); codeList.deleted = prevDeleted; throw err; }
+  const d = await getDb();
+  if (d) { try { await d.doc("nm/" + (await sha256hex("nm-doc:" + entry.code)).slice(0, 40)).delete(); } catch (e) {} }
+  if (ui.adminSeen) delete ui.adminSeen[nr];
+  return entry;
+}
+async function createCode(name, note) {
+  const code = randomCodeStr();
+  const entry = { nr: Math.max(20, ...ui.adminVault.map(e => e.nr)) + 1, code, name, nameDirty: true, note, created: Date.now(), blocked: false, h: await sha256hex("nm-code:" + code) };
+  ui.adminVault.push(entry);
+  try { await saveCodeList(); ui.adminNew = entry.nr; return entry; }
+  catch (err) { ui.adminVault.pop(); throw err; }
+}
+function viewAdmin() {
+  if (!session || !session.admin) return "";
+  if (!ui.adminVault) {
+    if (!ui.adminLoading && !ui.adminError) loadAdminVault();
+    return '<section class="card"><p class="muted" style="margin:0">' + esc(ui.adminError || "Codeliste wird geladen …") + "</p></section>";
+  }
+  const ed = editing("admin"), seen = ui.adminSeen || {};
+  const active = ui.adminVault.filter(e => !e.blocked).length;
+  let h = isFbAdmin()
+    ? '<section class="card"><div class="card-head"><div><h2>Admin-Konto</h2><span class="muted small">Angemeldet als ' + esc(fbUser.email || "Admin") + ' · Änderungen an der Codeliste sind freigeschaltet</span></div><button class="btn sm" data-action="admin-auth-logout">Admin abmelden</button></div></section>'
+    : '<section class="card"><div class="card-head"><div><h2>Admin-Konto</h2><span class="muted small">Zum Ändern der Codeliste (erstellen, sperren, löschen, Namen) meldest du dich einmal mit deinem Firebase-Admin-Konto an. Ansehen geht auch ohne.</span></div></div>' +
+      '<form id="admin-auth-form" class="form-row"><label class="field"><span>E-Mail</span><input type="email" id="admin-auth-email" autocomplete="username"></label>' +
+      '<label class="field"><span>Passwort</span><input type="password" id="admin-auth-pw" autocomplete="current-password"></label>' +
+      '<button class="btn primary" type="submit"' + (ui.adminAuthBusy ? " disabled" : "") + '>' + (ui.adminAuthBusy ? "Prüfe …" : "Als Admin anmelden") + '</button></form>' +
+      (ui.adminAuthError ? '<p class="small" style="color:var(--bad);margin:8px 0 0">' + esc(ui.adminAuthError) + '</p>' : "") + '</section>';
+  h += '<section class="card"><div class="card-head"><div><h2>Neuen Code erstellen</h2><span class="muted small">Der neue Code funktioniert sofort, mit eigenem, leerem Profil</span></div></div>' +
+    '<div class="form-row"><label class="field"><span>Name (oben rechts sichtbar)</span><input type="text" id="admin-new-name" placeholder="z. B. Max" maxlength="40"></label>' +
+    '<label class="field"><span>Notiz (nur für dich)</span><input type="text" id="admin-new-note" placeholder="z. B. Bruder, Q12" maxlength="80"></label>' +
+    '<button class="btn primary" data-action="admin-create"' + (ed || ui.adminBusy ? " disabled" : "") + ">" + (ui.adminBusy ? "Erstelle …" : "+ Code erstellen") + "</button></div></section>";
+  h += '<section class="card' + (ed ? " editing" : "") + '"><div class="card-head"><div><h2>Anmeldecodes</h2><span class="muted small">' + ui.adminVault.length + " Codes · " + active + " aktiv · Notizen sieht nur der Admin</span></div>" + editBar("admin") + "</div>" +
+    '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Name</th><th>Code</th><th>Notiz</th><th>Status</th><th>Zuletzt gespeichert</th>' + (ed ? "" : "<th></th>") + "</tr></thead><tbody>";
+  for (const e of ui.adminVault.slice().sort((a, b) => a.nr - b.nr)) {
+    const isAdm = e.nr === ADMIN_NR, askDel = ui.adminConfirmDel === e.nr;
+    h += "<tr" + (askDel ? ' style="background:var(--bad-soft)"' : ui.adminNew === e.nr ? ' style="background:var(--accent-soft)"' : "") + '><td class="num"><b>' + e.nr + "</b>" + (isAdm ? ' <span class="badge lf">Admin</span>' : "") + "</td>" +
+      "<td>" + (ed ? '<input type="text" id="admin-name-' + e.nr + '" data-action="admin-name" data-nr="' + e.nr + '" value="' + esc(e.name) + '" maxlength="40" placeholder="Profil ' + e.nr + '" style="min-width:130px">' : (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + e.nr + "</span>")) + "</td>" +
+      '<td><span class="num" style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + '</span> <button class="btn ghost sm" data-action="copy-code" data-code="' + fmtCode(e.code) + '" aria-label="Code kopieren">Kopieren</button></td>' +
+      "<td>" + (ed ? '<input type="text" id="admin-note-' + e.nr + '" data-action="admin-note" data-nr="' + e.nr + '" value="' + esc(e.note) + '" maxlength="80" style="min-width:150px">' : (e.note ? esc(e.note) : '<span class="muted">–</span>')) + "</td>" +
+      "<td>" + (isAdm ? '<span class="muted small">immer aktiv</span>' : ed ? '<label class="check"><input type="checkbox" id="admin-block-' + e.nr + '" data-action="admin-block" data-nr="' + e.nr + '"' + (e.blocked ? " checked" : "") + "> gesperrt</label>" : (e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>')) + "</td>" +
+      '<td class="small">' + (seen[e.nr] ? new Date(seen[e.nr]).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : '<span class="muted">noch nie</span>') + "</td>" +
+      (ed ? "" : "<td>" + (isAdm ? "" : askDel
+        ? '<div class="actions" style="flex-wrap:nowrap"><span class="small" style="white-space:nowrap">Mit allen Noten endgültig löschen?</span><button class="btn danger solid sm" data-action="admin-delete" data-nr="' + e.nr + '"' + (ui.adminBusy ? " disabled" : "") + '>Ja, löschen</button><button class="btn sm" data-action="admin-delete-cancel">Abbrechen</button></div>'
+        : '<button class="btn ghost sm danger" data-action="admin-delete-ask" data-nr="' + e.nr + '"' + (ui.adminBusy || ui.edit ? " disabled" : "") + ">" + ICON_TRASH + " Löschen</button>") + "</td>") + "</tr>";
+  }
+  h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Der Name steht beim jeweiligen Konto oben rechts statt „Profil XY“. Er wird mit dem Code der Person verschlüsselt und ist ab der nächsten Anmeldung sichtbar. Ein gesperrter Code kann sich nicht mehr anmelden, seine Noten bleiben aber erhalten. Löschen entfernt den Code und die gespeicherten Noten endgültig; das lässt sich nicht rückgängig machen. Als Admin kannst du die Noten anderer Profile nicht lesen.</p></section>';
+  return h;
+}
+
+function logout() {
+  if (remoteTimer) { clearTimeout(remoteTimer); remoteTimer = null; flush(); }
+  if (unsub) { try { unsub(); } catch (e) {} unsub = null; }
+  clearTimeout(snapTimer);
+  docRef = null; session = null; serverSeen = false; noWrite = false;
+  removeLS(LS_SESSION);
+  if (fbUser) adminSignOut();
+  state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null; ui.loginError = "";
+  ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null;
+  if (location.hash) location.hash = "";
+  updateHeader(); render();
+}
+function updateHeader() {
+  const on = !!session;
+  ["sync", "profile", "logout"].forEach(id => { document.getElementById(id).hidden = !on; });
+  document.querySelector("nav.tabs").hidden = !on;
+  document.getElementById("tab-admin").hidden = !(on && session.admin);
+  if (on) document.getElementById("profile").textContent = (session.name || "Profil " + session.nr) + (session.admin ? " · Admin" : "");
+}
+function viewLogin() {
+  return '<section class="card empty"><div class="raute" style="width:44px;height:44px" aria-hidden="true"></div><h2>Anmelden</h2>' +
+    '<p class="muted">Gib deinen Anmeldecode ein. Jeder Code öffnet ein eigenes Profil mit eigenen Fächern und Noten. Deine Daten werden mit deinem Code verschlüsselt, niemand ohne den Code kann sie lesen.</p>' +
+    '<form id="login-form" class="grid" style="gap:12px;width:100%;max-width:340px;text-align:left">' +
+    '<label class="field"><span>Anmeldecode</span><input type="text" id="login-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" style="font-size:1.05rem;letter-spacing:.06em"></label>' +
+    '<label class="check"><input type="checkbox" id="login-remember" checked> Auf diesem Gerät angemeldet bleiben</label>' +
+    (ui.loginError ? '<p class="small" style="color:var(--bad);margin:0">' + esc(ui.loginError) + "</p>" : "") +
+    '<button class="btn primary" type="submit" id="login-btn"' + (ui.loginBusy ? " disabled" : "") + ">" + (ui.loginBusy ? "Prüfe Code …" : "Anmelden") + "</button></form>" +
+    '<p class="muted small">Kein Code? Frag die Person, die dir den Link geschickt hat. Wer seinen Code verliert, kommt nicht mehr an seine Noten.</p></section>';
+}
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "admin-auth-form") return;
+  e.preventDefault();
+  const email = document.getElementById("admin-auth-email").value.trim(), pw = document.getElementById("admin-auth-pw").value;
+  ui.adminAuthBusy = true; ui.adminAuthError = ""; render();
+  try { await adminSignIn(email, pw); ui.adminAuthBusy = false; render(); toast("Als Admin angemeldet"); }
+  catch (err) { ui.adminAuthBusy = false; ui.adminAuthError = err.message; render(); const i = document.getElementById("admin-auth-email"); if (i) i.value = email; }
+});
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "login-form") return;
+  e.preventDefault();
+  const code = document.getElementById("login-code").value, remember = document.getElementById("login-remember").checked;
+  ui.loginBusy = true; ui.loginError = ""; render();
+  try { await login(code, remember); ui.loginBusy = false; toast("Angemeldet als " + (session.name || "Profil " + session.nr)); }
+  catch (err) { ui.loginBusy = false; ui.loginError = err && err.message ? err.message : "Anmeldung fehlgeschlagen."; render(); const i = document.getElementById("login-code"); if (i) { i.value = code; i.focus(); } }
+});
+
+/* ================= Firebase ================= */
+// Öffentliche Projektkonfiguration (kein Geheimnis, der Schutz kommt aus den Firestore-Regeln)
+const FIREBASE_CONFIG = {"apiKey":"AIzaSyDSprlig2yqtqKYn5b8ZyXzkKWN8SNzno0","authDomain":"notenmanager-eabe2.firebaseapp.com","projectId":"notenmanager-eabe2","storageBucket":"notenmanager-eabe2.firebasestorage.app","messagingSenderId":"480057776384","appId":"1:480057776384:web:0f1a592a649daeea5fbbe5"};
+// Firebase-Nutzer-ID des Admins: nur dieses Konto darf die Codeliste ändern
+const ADMIN_UID = "HUMTWpEcbbWUmrXqmum1bv3JPRK2";
+const FB_URL = "https://www.gstatic.com/firebasejs/12.19.0/";
+// Einmalige Übernahme der Codeliste aus dem alten claude.ai-Speicher (nur Prüfsummen und Verschlüsseltes).
+// Wird beim ersten Öffnen nach Firestore geschrieben und kann danach entfernt werden.
+const MIGRATION_CODES = {"blocked":[],"deleted":["ac2953bfa592b639d2e9056e2705ba7ff8208d59fc88078b4a8c3a76d6bac640","ad0bf7b1064beaf3acfa063ab3d7d9f13df6772e82ab8c9ad434db8031e21771","33dc186868173fd1c156a9ae4258960a736d80627f0b53d6766cabd8f76b393c","3bc3749dc992e618e7b54c6e2aebbd20a1effcf52242d458feeb07f6c5f036b3","dea7b3e8576d3b09ee3cb8d837107405a171849d62cbca4c305cbb3fd65474b9","2f6e210d807f40ccb7488c34d3bb6764bc673382852195766ea5a8d7c74b7137","d9ee4a844772c5a3e96185dcecd188830f8c01d69d97d1ee980911153f0cc669","e6b432312cdbf1e8e09d1e17ea79f6cdaf5a50ef4b6e88e9e75efe2e620ecf71","c86a5cfdbd8e449f315cdf424dda85c8b4f7d95f4745ab13d2ecba9e2c32c755","846968eed418b1dd15a773ee6ed92a2b0ea45cd6b758f195863d1b1bdf22ce22","8bf7f34e7f11b9ebdf7b7d59f444348ef5df2e8a1105fb1cd4c35e763ca6ab0d","caecfeb475f4ed375cb8e39908040a5403a722236bb56cdd71200b7325ede1fc","ebf34101c91dfd7dd1fad83bf951904f510bd52089d60448525bb936a7b217f8","cd7c3556e2ab4863a9b37e3d3aab7f44d40183d9f2f779a609eb2a812a254bce","f2627079cce4d3db58b792446301e226853c7e09ee80c803c063ec0fbd7794fc","4900831d1f8f4126765c305a41498f5ac824291a5e3b3cf71e23378900bf8154","acd8eec51fdc10b049208a532584611bf3a5fb60d3ac3037333fd667f794c549","421e6c4b23ff6d0e53d9386e2de45380eea4142a152d9c348184ed0cdcc46ad5"],"extra":[],"names":{"84c60f6930bf8dc909d4313f9e78338245df881933540b3c5bd725382b00b92e":{"ct":"4rbKolF+NZwRXp9P2Pln+gmlXIDfRbYrrg==","iv":"SP5srDgN38qVXHLt"},"adb834fca84413f6e3c727e044d6fd0937a8acaa9af0fcfe7a52ec52ffc9dbe8":{"ct":"nCOtuC2N7yR4OPvWWj/nMWkwP/xbT/xiSOCswAs=","iv":"TQfepp1DGu0JVI5r"}},"updatedAt":1795217705497,"v":1,"vault":{"ct":"rYcCZVkcMurTKLTZ9xkFbKhNWTK4tasr9wx654FU/EZ/Z7YZDsVfH5Kzxq4GDiolU2hFAkkxsFiy5q7jNNy1JrtsCpEb9UvWZp97DmVp5qnJg9PdfqiuHq4woJUyYVAt46/bCUm5fWnZapiT0/M6cmjsebwVRMI5O/c7zButkKm1l7fsihVT3nUgUgP6p17YoxmONCZXJINYHjgzvRr4neGsbk4bdxJsMMRDS1ojZp4V7ZaYUdpSsxVblbgVkc8SyqHJguH4rPWeBlWi7kl4FV8rt0XdPj8=","iv":"hsNDNwCMdyS+qq/V"}};
+const MIGRATION_DOCS = {};
+let fbAppP = null, fbAuthP = null, fbUser = null;
+function fbApp() {
+  if (!fbAppP) fbAppP = (async () => {
+    if (!FIREBASE_CONFIG || !FIREBASE_CONFIG.apiKey) return null;
+    const { initializeApp } = await import(FB_URL + "firebase-app.js");
+    return initializeApp(FIREBASE_CONFIG);
+  })().catch(e => { fbAppP = null; return null; });
+  return fbAppP;
+}
+function fbErr(e) {
+  const map = { "permission-denied": "invalid_argument", "resource-exhausted": "quota_exceeded" };
+  const x = new Error(e && e.message ? e.message : String(e));
+  x.code = e && map[e.code] ? map[e.code] : e && e.code;
+  return x;
+}
+// Kleine Hülle, damit der restliche Code wie bisher d.doc(pfad).get/set/delete/onSnapshot nutzt
+function getDb() {
+  if (!dbP) dbP = (async () => {
+    const app = await fbApp();
+    if (!app) return null;
+    const fs = await import(FB_URL + "firebase-firestore.js");
+    const db = fs.getFirestore(app);
+    const wrap = sn => ({ exists: sn.exists(), data: () => sn.data(), metadata: sn.metadata });
+    return {
+      doc(path) {
+        const ref = fs.doc(db, path);
+        return {
+          get: () => fs.getDoc(ref).then(wrap, e => { throw fbErr(e); }),
+          set: data => fs.setDoc(ref, data).catch(e => { throw fbErr(e); }),
+          update: data => fs.updateDoc(ref, data).catch(e => { throw fbErr(e); }),
+          delete: () => fs.deleteDoc(ref).catch(e => { throw fbErr(e); }),
+          onSnapshot: (next, err) => fs.onSnapshot(ref, { includeMetadataChanges: true }, sn => next(wrap(sn)), e => err && err(fbErr(e)))
+        };
+      }
+    };
+  })().catch(e => { dbP = null; return null; });
+  return dbP;
+}
+function getAuthApi() {
+  if (!fbAuthP) fbAuthP = (async () => {
+    const app = await fbApp();
+    if (!app) return null;
+    const m = await import(FB_URL + "firebase-auth.js");
+    const auth = m.getAuth(app);
+    await new Promise(res => { let first = true; m.onAuthStateChanged(auth, u => { fbUser = u; if (first) { first = false; res(); } else if (currentTab() === "admin") render(); }); });
+    return { auth, m };
+  })().catch(e => { fbAuthP = null; return null; });
+  return fbAuthP;
+}
+function isFbAdmin() { return !!(fbUser && fbUser.uid === ADMIN_UID); }
+async function adminSignIn(email, pw) {
+  const a = await getAuthApi();
+  if (!a) throw new Error("Firebase ist nicht erreichbar.");
+  try { await a.m.signInWithEmailAndPassword(a.auth, email, pw); }
+  catch (e) { throw new Error(e && /invalid-credential|wrong-password|user-not-found|invalid-email/.test(e.code || "") ? "E-Mail oder Passwort stimmt nicht." : e && e.code === "auth/too-many-requests" ? "Zu viele Versuche. Warte kurz und versuch es nochmal." : "Anmeldung fehlgeschlagen."); }
+  fbUser = a.auth.currentUser;
+  if (!isFbAdmin()) { await a.m.signOut(a.auth); fbUser = null; throw new Error("Dieses Konto ist nicht als Admin eingetragen."); }
+}
+async function adminSignOut() { const a = await getAuthApi(); if (a) { try { await a.m.signOut(a.auth); } catch (e) {} } fbUser = null; }
+
+/* ================= Speichern: verschlüsselt lokal + Sync über Geräte ================= */
+let docRef = null, unsub = null, snapTimer = null, serverSeen = false, writing = false, again = false, noWrite = false, syncState = "local", remoteTimer = null;
+let localChain = Promise.resolve(), dbP = null;
+const SYNC_TEXT = { local: "Nur auf diesem Gerät", connecting: "Verbinde …", synced: "Auf allen Geräten gespeichert", saving: "Speichert …", offline: "Keine Verbindung – lokal gespeichert", error: "Sync-Fehler – lokal gespeichert", readonly: "Nur auf diesem Gerät gespeichert" };
+function saveLocal() {
+  const my = session; if (!my) return;
+  const st = JSON.parse(JSON.stringify(state));
+  localChain = localChain.then(async () => { try { writeLS(LS_PREFIX + my.docId, JSON.stringify(await encryptObj(my.key, st))); } catch (e) {} });
+}
+async function openProfile() {
+  const my = session;
+  state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null;
+  try { const raw = readLS(LS_PREFIX + my.docId); if (raw) state = migrate(await decryptObj(my.key, JSON.parse(raw))); } catch (e) {}
+  if (session !== my) return;
+  setSync("local"); updateHeader(); render();
+  const d = await getDb();
+  if (!d || session !== my) return;
+  try { docRef = d.doc("nm/" + my.docId); } catch (e) { return; }
+  serverSeen = false; noWrite = false; setSync("connecting");
+  clearTimeout(snapTimer);
+  snapTimer = setTimeout(() => { if (session === my && !serverSeen) setSync("offline"); }, 10000);
+  unsub = docRef.onSnapshot(async snap => {
+    if (session !== my || snap.metadata.hasPendingWrites) return;
+    const mig = !snap.exists && !snap.metadata.fromCache ? MIGRATION_DOCS[my.docId] || null : null;
+    const data = snap.exists ? snap.data() : mig;
+    const remoteAt = data && typeof data.updatedAt === "number" ? data.updatedAt : 0;
+    if (data && data.ct && remoteAt > (state.updatedAt || 0)) {
+      try {
+        const s = await decryptObj(my.key, data);
+        if (session !== my) return;
+        state = migrate(s);
+        ui.edit = null; // auf einem anderen Gerät geändert: Bearbeitung hier beenden
+        saveLocal(); render();
+      } catch (e) {}
+    }
+    if (!snap.metadata.fromCache) {
+      clearTimeout(snapTimer);
+      const first = !serverSeen; serverSeen = true;
+      if (mig || (first && (state.updatedAt || 0) > remoteAt)) flush(); else if (!writing && !noWrite) setSync("synced");
+    }
+  }, err => { clearTimeout(snapTimer); if (session === my) setSync("error"); });
+}
+function setSync(s) {
+  syncState = s;
+  const el = document.getElementById("sync"); el.dataset.s = s;
+  document.getElementById("sync-text").textContent = SYNC_TEXT[s] || s;
+  const d = document.getElementById("sync-detail"); if (d) d.textContent = syncDetail();
+}
+function syncDetail() {
+  if (syncState === "readonly") return "Du hast keinen Schreibzugriff auf den geteilten Speicher dieser App. Dein Profil wird deshalb verschlüsselt nur in diesem Browser gespeichert. Mach regelmäßig ein Backup.";
+  if (syncState === "local") return "Dein Profil wird verschlüsselt in diesem Browser gespeichert. Mach regelmäßig ein Backup.";
+  return "Dein Profil liegt verschlüsselt in der Datenbank und ist auf jedem Gerät mit deinem Code verfügbar.";
+}
+function scheduleRemote() {
+  if (!docRef || noWrite) return;
+  clearTimeout(remoteTimer);
+  remoteTimer = setTimeout(() => { remoteTimer = null; flush(); }, 700);
+}
+async function flush() {
+  const ref = docRef, my = session, st = state;
+  if (!ref || !my || !serverSeen || noWrite) return;
+  if (writing) { again = true; return; }
+  writing = true; setSync("saving");
+  try {
+    const p = await encryptObj(my.key, st);
+    await ref.set({ v: 1, updatedAt: st.updatedAt || 0, iv: p.iv, ct: p.ct });
+    if (session === my) setSync("synced");
+  } catch (err) {
+    if (err && err.code === "invalid_argument") { noWrite = true; setSync("readonly"); }
+    else { setSync("error"); if (err && err.code === "quota_exceeded") toast("Speicher voll – bitte Backup herunterladen."); }
+  }
+  writing = false;
+  if (again) { again = false; flush(); }
+}
+
+// Start: gemerkten Code verwenden oder Anmeldung zeigen
+(async () => {
+  const saved = readLS(LS_SESSION);
+  if (saved) { try { await login(saved, true); return; } catch (e) { removeLS(LS_SESSION); } }
+  updateHeader(); render();
+})();
+</script>
+</body>
+</html>
