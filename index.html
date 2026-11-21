@@ -596,8 +596,6 @@ function groupMins() {
   state.subjects.filter(s => s.group === "vk").forEach(v => { const p = findS(v.vkPartner); g.push({ subs: p ? [v, p] : [v], hjs: [0, 1], min: 3, label: esc(v.name) + (p ? " + " + esc(p.name) : "") + ": 3 aus 12/1–12/2" }); });
   return g;
 }
-// Optionsregel: nur Fächer mit Belegung über 4 Halbjahre, die kein Abiturfach sind
-function optionCandidates() { return state.subjects.filter(s => fullyBelegt(s) && !isAbi(s) && effP(s) > 0 && !["sport", "none", "seminar", "vk"].includes(s.group)); }
 // Wie viele Einbringungen sind bei voller Belegung Pflicht? (inkl. Seminararbeit)
 function plannedMandatory(reduceId) {
   let n = SLOTS_SEMINAR;
@@ -655,23 +653,6 @@ function computeAll() {
   const slots = SLOTS_TOTAL - SLOTS_SEMINAR;
   let sel = selectFor(slots), streichFach = null, streichArt = null;
   const planned = plannedMandatory();
-  const cands = optionCandidates();
-  if (planned > SLOTS_TOTAL) {
-    // Optionsregel Möglichkeit 2: Streichung nötig, damit die Fächerwahl in 40 Einbringungen passt
-    let best = null;
-    for (const s of cands) {
-      if (plannedMandatory(s.id) > SLOTS_TOTAL) continue;
-      const alt = selectFor(slots, s.id);
-      if (!best || alt.sum > best.sel.sum) best = { sel: alt, s };
-    }
-    if (best) { sel = best.sel; streichFach = best.s; streichArt = "Streichung"; }
-  } else if (state.settings.streichung) {
-    // Optionsregel Möglichkeit 1: Ersatz durch eine bessere Halbjahresleistung
-    for (const s of cands) {
-      const alt = selectFor(slots, s.id);
-      if (alt.n >= sel.n && alt.sum > sel.sum) { sel = alt; streichFach = s; streichArt = "Ersatz"; }
-    }
-  }
   const plannedFinal = streichFach && streichArt === "Streichung" ? plannedMandatory(streichFach.id) : planned;
   let all = 0;
   for (const s of state.subjects) for (let h = 0; h < 4; h++) if (hjl(s, h)) all++;
@@ -1183,8 +1164,7 @@ function viewOptions() {
     '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + L[state.settings.currentHj] + "</div></div></div>" +
     '<p class="muted small" style="margin:0">Das Halbjahr stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar) und wird beim Eintragen von Noten vorausgewählt. Nach den Sommerferien geht es von der Q' + L[0].split("/")[0] + " automatisch in die Q" + L[2].split("/")[0] + ".</p>" +
     (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
-    '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
-    '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
+    "</div></div>" +
     viewDataCard() + "</section>";
   h += '<section class="card"><div class="card-head"><h2>Punkte und Noten</h2></div><div class="ptable">' +
     Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
