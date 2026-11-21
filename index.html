@@ -102,6 +102,19 @@ main { padding-block: 22px 60px; display: grid; gap: 22px; }
 .hero .meta { font-size: .9rem; opacity: .9; }
 .bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, currentColor 22%, transparent); overflow: hidden; }
 .bar > i { display: block; height: 100%; background: currentColor; border-radius: inherit; }
+.mc-only, .mc-chev { display: none; }
+@media (max-width: 640px) {
+  .mc > .card-head { cursor: pointer; user-select: none; margin-bottom: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
+  .mc > .card-head > :not(.mc-chev) { grid-column: 1; }
+  .mc > .card-head > .mc-chev { grid-column: 2; grid-row: 1 / span 2; margin: 0 4px 0 0; }
+  .mc.open > .card-head { margin-bottom: 14px; }
+  .mc:not(.open) > :not(.card-head) { display: none !important; }
+  .mc-only { display: flex; }
+  .stats-wrap.mc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); }
+  section.mc:not(.card) { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; box-shadow: var(--shadow); }
+  .mc-chev { display: inline-block; width: 9px; height: 9px; margin-left: auto; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; flex: none; }
+  .mc.open .mc-chev { transform: rotate(-135deg); }
+}
 .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
 .stat .v { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; line-height: 1.1; }
@@ -146,6 +159,7 @@ tfoot td { font-weight: 700; border-bottom: none; }
 .checks { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .checks li:last-child { border-bottom: none; }
+@media (max-width: 640px) { .checks li { grid-template-columns: 22px minmax(0, 1fr); row-gap: 2px; } .checks li > :nth-child(3) { grid-column: 2; text-align: left !important; } }
 .ico { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; font-weight: 800; margin-top: 1px; }
 .ico.ok { background: var(--good-soft); color: var(--good); }
 .ico.warn { background: var(--bad-soft); color: var(--bad); }
@@ -810,15 +824,16 @@ function viewOverview() {
     (c.total != null && c.total < 300 ? " · unter 300 Punkten nicht bestanden" : "") + "</div>" +
     '<div class="bar" aria-hidden="true"><i style="width:' + progress.toFixed(1) + '%"></i></div>' +
     '<div class="meta small">' + c.knownSlots + " von 40 Halbjahresleistungen stehen fest" + (c.examsEntered ? " · " + c.examsEntered + " von 5 Prüfungen" : "") + "</div></div>";
-  h += '<div class="stats">' +
+  h += '<div class="stats-wrap' + mcCls("stats") + '"><div class="card-head mc-only"' + mcHead("stats") + '><h2>Punkte im Detail</h2>' + MC_CHEV + "</div>" +
+    '<div class="stats">' +
     stat("Block I · Qualifikationsphase", c.block1 != null ? fmt(c.block1) + " <small>/ 600</small>" : "–", c.knownSlots < SLOTS_TOTAL ? "hochgerechnet aus " + fmt(c.knownB1) + " Punkten" : "endgültig") +
     stat("Block II · Abiturprüfung", c.block2 != null ? fmt(c.block2) + " <small>/ 300</small>" : "–", c.examsEntered < 5 ? "geschätzt aus deinen Fachschnitten" : "eingetragen") +
     stat("Ø eingebrachte Leistung", c.avgB1 != null ? fmt(c.avgB1, 2) + " <small>Punkte</small>" : "–", c.avgB1 != null ? "entspricht Note " + NOTE[roundPts(c.avgB1)] : "") +
     stat("Unterpunktungen (unter 5)", underCount(c) + " <small>/ max. 8</small>", "Seminararbeit unter 9 zählt doppelt") +
-    "</div></section>";
+    "</div></div></section>";
 
   // Halbjahre
-  h += '<section><div class="card-head"><h2>Halbjahre</h2><span class="muted small">Was momentan in jedem Halbjahr eingebracht würde</span></div><div class="grid g-4">';
+  h += '<section class="' + mcCls("hj") + '"><div class="card-head"' + mcHead("hj") + '><h2>Halbjahre</h2><span class="muted small">Was momentan in jedem Halbjahr eingebracht würde</span>' + MC_CHEV + '</div><div class="grid g-4">';
   for (let i = 0; i < 4; i++) {
     let vals = [], inS = 0, inN = 0;
     for (const s of state.subjects) { const r = hjl(s, i); if (r) { vals.push(r.final); if (c.sel.pick.has(s.id + ":" + i)) { inS += r.final; inN++; } } }
@@ -833,8 +848,8 @@ function viewOverview() {
   h += "</div></section>";
 
   // Matrix
-  h += '<section class="card"><div class="card-head"><h2>Einbringung</h2><span class="muted small">Pflichteinbringungen: ' + c.planned + " von 40 · frei wählbar: " + Math.max(0, 40 - c.planned) +
-    (c.streichFach ? " · Optionsregel (" + c.streichArt + ") in " + esc(c.streichFach.name) : "") + "</span></div>" +
+  h += '<section class="card' + mcCls("ein") + '"><div class="card-head"' + mcHead("ein") + '><h2>Einbringung</h2><span class="muted small">Pflichteinbringungen: ' + c.planned + " von 40 · frei wählbar: " + Math.max(0, 40 - c.planned) +
+    (c.streichFach ? " · Optionsregel (" + c.streichArt + ") in " + esc(c.streichFach.name) : "") + "</span>" + MC_CHEV + "</div>" +
     '<p class="muted small" style="margin:-6px 0 12px">Zuerst die Pflicht je Fach, dann Fremdsprachen und Naturwissenschaften auf je mind. 4, danach die restlichen Plätze mit deinen besten Halbjahresleistungen.</p>' +
     '<div class="tbl-wrap"><table><thead><tr><th>Fach</th>' + L.map(l => '<th class="c">' + l + "</th>").join("") +
     '<th class="c">Pflicht</th><th class="r">Σ eingebr.</th></tr></thead><tbody>';
@@ -860,6 +875,10 @@ function viewOverview() {
   h += '<section class="grid g-2">' + viewChecks(c) + viewTarget(c) + "</section>";
   return h;
 }
+// Auf dem Handy einklappbare Bereiche der Übersicht (am PC immer offen)
+function mcCls(k) { return " mc" + (ui.mcOpen && ui.mcOpen[k] ? " open" : ""); }
+function mcHead(k) { return ' data-action="mc-toggle" data-k="' + k + '"'; }
+const MC_CHEV = '<span class="mc-chev" aria-hidden="true"></span>';
 function stat(label, v, sub) { return '<div class="stat"><span class="label">' + label + '</span><span class="v num">' + v + '</span><span class="muted small">' + (sub || "") + "</span></div>"; }
 // Mind. 32 der 40 Einbringungen mit je 5 Punkten; die Seminararbeit zählt als 2 und braucht dafür 9 Punkte
 function underCount(c) {
@@ -963,7 +982,7 @@ function viewChecks(c) {
   add(acBad.length ? "warn" : acOpen.length ? "open" : "ok", "Fächerkombination fürs Abitur", acBad.length ? acBad[0].text : acOpen.length ? "noch unvollständig" : "gültig");
   const b2 = blockIIChecks();
   if (b2.length) items.push(...b2); else add("open", "Bestehensregeln der Abiturprüfung", "sobald alle 5 Ergebnisse eingetragen sind");
-  return '<div class="card"><div class="card-head"><h2>Zulassung &amp; Bestehen</h2><span class="muted small">Punktehürden Block I und II</span></div>' + checkList(items) + "</div>";
+  return '<div class="card' + mcCls("zul") + '"><div class="card-head"' + mcHead("zul") + '><h2>Zulassung &amp; Bestehen</h2><span class="muted small">Punktehürden Block I und II</span>' + MC_CHEV + "</div>" + checkList(items) + "</div>";
 }
 function viewTarget(c) {
   const target = ui.target || 2.0;
@@ -983,7 +1002,7 @@ function viewTarget(c) {
   }
   const opts = [];
   for (let t = 10; t <= 40; t++) opts.push('<option value="' + t / 10 + '"' + (Math.abs(t / 10 - target) < 1e-9 ? " selected" : "") + ">" + fmt(t / 10, 1) + "</option>");
-  return '<div class="card"><div class="card-head"><h2>Zielrechner</h2><span class="muted small">Was brauche ich noch?</span></div>' +
+  return '<div class="card' + mcCls("ziel") + '"><div class="card-head"' + mcHead("ziel") + '><h2>Zielrechner</h2><span class="muted small">Was brauche ich noch?</span>' + MC_CHEV + "</div>" +
     '<div class="form-row" style="margin-bottom:14px"><label class="field"><span>Wunsch-Abischnitt</span><select id="target" data-action="target">' + opts.join("") + "</select></label>" +
     '<div class="field"><span>Benötigte Gesamtpunkte</span><div class="num" style="padding:8px 0;font-weight:700">' + need + " von 900</div></div></div>" +
     '<p class="need" style="margin:0">' + msg + "</p>" +
@@ -1848,6 +1867,7 @@ document.addEventListener("click", e => {
     }
     case "grade-open": ui.addGrade = el.dataset.id; render(); return;
     case "grade-close": ui.addGrade = null; render(); return;
+    case "mc-toggle": if (!matchMedia("(max-width: 640px)").matches) return; ui.mcOpen = Object.assign({}, ui.mcOpen, { [el.dataset.k]: !(ui.mcOpen && ui.mcOpen[el.dataset.k]) }); render(); return;
     case "forecast-start": startForecast(); return;
     case "forecast-end": endForecast(); return;
     case "bk-scroll": { const c = document.getElementById("backups"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
