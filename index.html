@@ -944,14 +944,16 @@ function viewSubject(s, c, L) {
     '<div class="num" style="text-align:right"><span class="label">Σ Halbjahre</span><div style="font-family:var(--font-display);font-weight:700;font-size:1.6rem">' + ((sumSubject(s) || {}).sum ?? "–") + "</div></div></div>";
   const catOpts = Object.entries(CATS).filter(([k, v]) => !v.old && (s.type === "wseminar" ? v.group === "klein" : k !== "praktisch" || s.type === "sport" || s.group === "sport" || s.group === "kumu"));
   const selCat = catOpts.some(([k]) => k === (ui.lastCat || "ex")) ? (ui.lastCat || "ex") : catOpts[0][0], wOff = CATS[selCat].group !== "klein";
-  h += '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
+  if (ui.addGrade !== s.id) {
+    h += '<div class="actions" style="margin-top:4px"><button class="btn primary" data-action="grade-open" data-id="' + s.id + '">+ Note hinzufügen</button></div></div>';
+  } else h += '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
     '<label class="field"><span>Halbjahr</span><select id="g-hj">' + L.map((l, i) => s.hj[i] ? '<option value="' + i + '"' + (i === cur ? " selected" : "") + ">" + l + "</option>" : "").join("") + "</select></label>" +
     '<label class="field"><span>Art</span><select id="g-cat">' + catOpts.map(([k, v]) => '<option value="' + k + '"' + (k === selCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
     '<label class="field"><span>Punkte</span><select id="g-pts">' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (p === 10 ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("") + "</select></label>" +
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + '></label>' +
     '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
     '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional"></label>' +
-    '<button class="btn primary" type="submit">Note eintragen</button></form>' +
+    '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
     '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
   // Halbjahre
   for (let i = 0; i < 4; i++) {
@@ -1248,6 +1250,8 @@ document.addEventListener("click", e => {
       legacy = null; writeLS(LS_LEGACY_DONE, "1");
       commit(); toast("Bisherige Noten übernommen"); return;
     }
+    case "grade-open": ui.addGrade = el.dataset.id; render(); return;
+    case "grade-close": ui.addGrade = null; render(); return;
     case "forecast-start": startForecast(); return;
     case "forecast-end": endForecast(); return;
     case "export": doExport(); return;
@@ -1264,7 +1268,7 @@ document.addEventListener("submit", e => {
   s.grades.push({ id: uid(), hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
     weight: CATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("g-date").value || "",
     note: document.getElementById("g-note").value.trim(), plan: false });
-  ui.lastCat = cat;
+  ui.lastCat = cat; ui.addGrade = null;
   commit(); toast("Note eingetragen");
 });
 document.addEventListener("change", e => {
