@@ -3,7 +3,7 @@
      Nur ohne Verbindung wird die zuletzt geladene Fassung aus dem Cache genommen.
    - Symbole, Manifest, Schriften und die Firebase-Bibliotheken (feste Versionsnummer) werden zwischengespeichert.
    - Anfragen an Firebase selbst (Datenbank, Anmeldung) laufen nie über diesen Service Worker. */
-const VERSION = "nm-v9";
+const VERSION = "nm-v10";
 const CACHE = VERSION;
 const CORE = [
   "./",
@@ -13,7 +13,8 @@ const CORE = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-192.png",
   "./icons/icon-maskable-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./fonts/fonts.css"
 ];
 const FB = "https://www.gstatic.com/firebasejs/12.19.0/";
 const OPTIONAL = [FB + "firebase-app.js", FB + "firebase-firestore.js", FB + "firebase-auth.js"];
