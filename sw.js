@@ -3,7 +3,7 @@
      Nur ohne Verbindung wird die zuletzt geladene Fassung aus dem Cache genommen.
    - Symbole, Manifest, Schriften und die Firebase-Bibliotheken (feste Versionsnummer) werden zwischengespeichert.
    - Anfragen an Firebase selbst (Datenbank, Anmeldung) laufen nie über diesen Service Worker. */
-const VERSION = "nm-v10";
+const VERSION = "nm-v11";
 const CACHE = VERSION;
 const CORE = [
   "./",
@@ -30,7 +30,7 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    for (const k of await caches.keys()) if (/^nm-v\d+$/.test(k) && k !== CACHE) await caches.delete(k);
     await self.clients.claim();
   })());
 });
@@ -47,6 +47,8 @@ self.addEventListener("fetch", event => {
   const url = new URL(req.url);
   const sameOrigin = url.origin === self.location.origin;
   const scope = new URL(self.registration.scope);
+  // Die Beta unter /beta/ hat ihren eigenen Service Worker
+  if (sameOrigin && url.pathname.startsWith(scope.pathname + "beta/")) return;
 
   // Seite: Netz zuerst (ohne alten HTTP-Cache), sonst gespeicherte Fassung
   if (req.mode === "navigate" && sameOrigin && url.pathname.startsWith(scope.pathname)) {
