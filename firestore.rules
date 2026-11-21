@@ -3,6 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Profile: Die Dokument-ID ist eine Prüfsumme des Anmeldecodes, der Inhalt ist verschlüsselt.
     // Wer den Code kennt, kennt die ID. Auflisten aller Profile ist nicht erlaubt.
+    // Dazu gehört auch das verschlüsselte Anmeldeprotokoll (eigene Prüfsumme, gleicher Aufbau).
     match /nm/{docId} {
       allow get, delete: if docId.matches('^[0-9a-f]{40}$');
       allow create, update: if docId.matches('^[0-9a-f]{40}$')
@@ -15,6 +16,39 @@ service cloud.firestore {
     match /nm-codes/{docId} {
       allow get: if docId == 'list';
       allow write: if docId == 'list' && request.auth != null && request.auth.uid == 'HUMTWpEcbbWUmrXqmum1bv3JPRK2';
+    }
+    // Code ändern: Vermerk "alter Code -> neuer Code". Anlegen darf nur, wer den alten Code kennt
+    // (die Prüfsumme des mitgeschickten alten Codes muss die Dokument-ID sein). Danach unveränderlich.
+    match /nm-moves/{h} {
+      allow get: if h.matches('^[0-9a-f]{64}$');
+      allow create: if h.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['v', 'old', 'to', 'at', 'sealed'])
+        && request.resource.data.old is string && request.resource.data.old.matches('^[A-Z0-9]{12}$')
+        && hashing.sha256('nm-code:' + request.resource.data.old).toHexString().lower() == h
+        && request.resource.data.to is string && request.resource.data.to.matches('^[0-9a-f]{64}$')
+        && request.resource.data.to != h
+        && request.resource.data.at is number
+        && (!('sealed' in request.resource.data) || request.resource.data.sealed == null || (
+          request.resource.data.sealed is map
+          && request.resource.data.sealed.keys().hasOnly(['x', 'y', 'iv', 'ct'])
+          && request.resource.data.sealed.x is string && request.resource.data.sealed.x.size() < 100
+          && request.resource.data.sealed.y is string && request.resource.data.sealed.y.size() < 100
+          && request.resource.data.sealed.iv is string && request.resource.data.sealed.iv.size() < 64
+          && request.resource.data.sealed.ct is string && request.resource.data.sealed.ct.size() < 200));
+    }
+    // Rückverweis "neuer Code -> alter Code", nur zusammen mit dem passenden Vermerk oben. Danach unveränderlich.
+    match /nm-alias/{h} {
+      allow get: if h.matches('^[0-9a-f]{64}$');
+      allow create: if h.matches('^[0-9a-f]{64}$')
+        && request.resource.data.keys().hasOnly(['v', 'from', 'name', 'at'])
+        && request.resource.data.from is string && request.resource.data.from.matches('^[0-9a-f]{64}$')
+        && request.resource.data.at is number
+        && getAfter(/databases/$(database)/documents/nm-moves/$(request.resource.data.from)).data.to == h
+        && (!('name' in request.resource.data) || request.resource.data.name == null || (
+          request.resource.data.name is map
+          && request.resource.data.name.keys().hasOnly(['iv', 'ct'])
+          && request.resource.data.name.iv is string && request.resource.data.name.iv.size() < 64
+          && request.resource.data.name.ct is string && request.resource.data.name.ct.size() < 400));
     }
   }
 }
