@@ -717,8 +717,8 @@ function render() {
 
 function emptyState() {
   return '<section class="card empty"><div class="raute" style="width:44px;height:44px" aria-hidden="true"></div>' +
-    "<h2>Leg deine Fächer an</h2><p class=\"muted\">Wähle deine Fächer aus den Vorlagen oder leg eigene an. Danach trägst du pro Halbjahr Schulaufgaben, Klausuren, Exen und Abfragen ein. Halbjahresleistung, Einbringung und Abischnitt rechnet der Notenmanager selbst aus.</p>" +
-    '<div class="actions" style="justify-content:center"><a class="btn primary" href="#faecher" data-action="open-add">Fächer auswählen</a>' +
+    "<h2>Leg deine Fächer an</h2><p class=\"muted\">Wähle deine Fächer unter Optionen aus den Vorlagen oder leg eigene an. Danach trägst du pro Halbjahr Schulaufgaben, Klausuren, Exen und Abfragen ein. Halbjahresleistung, Einbringung und Abischnitt rechnet der Notenmanager selbst aus.</p>" +
+    '<div class="actions" style="justify-content:center"><a class="btn primary" href="#optionen" data-action="open-add">Fächer auswählen</a>' +
     (legacy ? '<button class="btn" data-action="import-legacy">Bisherige Noten übernehmen (' + legacy.subjects.length + " Fächer)</button>" : "") + "</div>" +
     (legacy ? '<p class="muted small">Auf diesem Gerät bzw. in deinem Konto liegen noch Noten aus der Zeit vor den Anmeldecodes. Du kannst sie einmalig in dieses Profil übernehmen.</p>' : "") + "</section>";
 }
@@ -918,23 +918,45 @@ function viewTarget(c) {
 }
 
 /* ---- Fächer ---- */
+// Reihenfolge der Fächerlisten: Leistungsfächer, dann Abiturfächer, dann alphabetisch
+function sortedSubjects() {
+  const ex = examIds();
+  const rank = s => s.core ? (/^deutsch/i.test(s.name) ? 0 : 1) : s.lf ? 2 : ex.includes(s.id) ? 3 + ex.indexOf(s.id) : 10;
+  return state.subjects.slice().sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "de"));
+}
 function viewSubjects() {
   const L = hjLabels();
-  let sel = state.subjects.find(s => s.id === ui.selected) || state.subjects[0];
+  const list = sortedSubjects();
+  let sel = list.find(s => s.id === ui.selected) || list[0];
   if (sel) ui.selected = sel.id;
   let h = "";
-  if (ui.showAdd || !state.subjects.length) h += viewAdd();
-  if (!state.subjects.length) return h;
+  if (!state.subjects.length) return emptyState();
   const c = computeAll();
   const open = !!ui.listOpen || !sel;
   h += '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><h2>Fächer</h2><div class="actions">' +
-    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button>" +
-    '<button class="btn sm" data-action="toggle-add">' + (ui.showAdd ? "Schließen" : "+ Fach") + "</button></div></div>";
-  for (const s of state.subjects) {
+    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button></div></div>";
+  for (const s of list) {
     h += '<button class="subj-item" data-action="select" data-id="' + s.id + '" aria-current="' + (sel && s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + badges(s) + '</span><span class="mini">' +
       [0, 1, 2, 3].map(i => { if (!s.hj[i]) return ""; const r = hjl(s, i); return r ? chip(r.final, c.sel.pick.has(s.id + ":" + i) ? "" : "out") : '<span class="pt out">·</span>'; }).join("") + "</span></button>";
   }
   h += "</div>" + (sel ? viewSubject(sel, c, L) : "") + "</section>";
+  return h;
+}
+// Fächer anlegen, einstellen und löschen (Tab Optionen)
+function viewManageSubjects(L) {
+  let h = "";
+  if (ui.showAdd || !state.subjects.length) h += viewAdd();
+  if (!state.subjects.length) return h;
+  const list = sortedSubjects();
+  const sel = list.find(s => s.id === ui.optSel) || list[0];
+  ui.optSel = sel.id;
+  const open = !!ui.listOpen;
+  h += '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><div><h2>Deine Fächer</h2><span class="muted small">Anlegen, einstellen, löschen</span></div><div class="actions">' +
+    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button>" +
+    '<button class="btn sm" data-action="toggle-add">' + (ui.showAdd ? "Schließen" : "+ Fach") + "</button></div></div>";
+  for (const s of list)
+    h += '<button class="subj-item" data-action="opt-select" data-id="' + s.id + '" aria-current="' + (s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + badges(s) + "</span></button>";
+  h += "</div>" + viewSubjectSettings(sel, L) + "</section>";
   return h;
 }
 function viewAdd() {
@@ -999,7 +1021,11 @@ function viewSubject(s, c, L) {
       Array.from({ length: 16 }, (_, p) => 15 - p).map(p => '<option value="' + p + '"' + (s.override[i] === p ? " selected" : "") + ">" + p + " Punkte</option>").join("") + "</select></label></div>";
   }
   h += "</div>";
-  // Einstellungen
+  return h + "</div>";
+}
+// Einstellungen eines Fachs (im Tab Optionen)
+function viewSubjectSettings(s, L) {
+  let h = "";
   const edS = editing("subj:" + s.id);
   const TYPES = [["standard", "Standard (große : kleine = 1 : 1)"], ["wseminar", "W-Seminar (nur kleine LN)"], ["sport", "Sport (Praxis doppelt)"]];
   h += '<div class="card' + (edS ? " editing" : "") + '"><div class="card-head"><h3>Fach-Einstellungen</h3>' + editBar("subj:" + s.id) + "</div>";
@@ -1011,7 +1037,7 @@ function viewSubject(s, c, L) {
       kv("Rolle", s.core ? "Leistungsfach (fest)" : s.lf ? "Weiteres Leistungsfach" : isAbi(s) ? "Abiturfach" : grp(s).abi ? "kein Abiturfach" : "kann kein Abiturfach sein") +
       kv("Belegt in", L.filter((l, i) => s.hj[i]).join(", ") || "–") +
       kv("Pflichteinbringungen", R.p + ' <span class="muted small">(' + esc(R.why) + ")</span>") + kv("Höchstens einbringbar", R.max) +
-      (s.group === "vk" ? kv("Partnerfach", partner ? esc(partner.name) : "keins") : "") + "</dl></div></div>";
+      (s.group === "vk" ? kv("Partnerfach", partner ? esc(partner.name) : "keins") : "") + "</dl></div>";
   }
   h += '<div class="grid" style="gap:14px">' +
     '<div class="form-row"><label class="field"><span>Name</span><input type="text" id="s-name" data-field="name" data-id="' + s.id + '" value="' + esc(s.name) + '"></label>' +
@@ -1034,7 +1060,7 @@ function viewSubject(s, c, L) {
     '<div class="actions">' + (ui.confirm === "del-" + s.id
       ? '<span class="small">Fach mit allen ' + s.grades.length + ' Noten löschen?</span><button class="btn danger solid sm" data-action="del-subject" data-id="' + s.id + '">Ja, löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>'
       : '<button class="btn danger sm" data-action="ask-del" data-id="' + s.id + '">Fach löschen</button>') + "</div></div></div>";
-  return h + "</div>";
+  return h;
 }
 
 /* ---- Abitur ---- */
@@ -1103,7 +1129,8 @@ function viewAbitur() {
 function viewOptions() {
   const L = hjLabels();
   const edB = editing("base");
-  let h = '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
+  let h = viewManageSubjects(L);
+  h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
     (edB
       ? '<div class="grid" style="gap:14px"><label class="field" style="max-width:320px"><span>Jahrgangsstufen</span><select id="o-labels" data-opt="labels"><option value="g9"' + (state.settings.labels === "g9" ? " selected" : "") + ">12/1 – 13/2 (G9)</option><option value=\"g8\"" + (state.settings.labels === "g8" ? " selected" : "") + ">11/1 – 12/2 (G8)</option></select></label>" +
         '<label class="check"><input type="checkbox" id="o-kumu" data-opt="kumuLf"' + (state.settings.kumuLf ? " checked" : "") + "> Meine Schule bietet Kunst/Musik als Leistungsfach an (sonst nur Kolloquium)</label></div>"
@@ -1199,6 +1226,7 @@ document.addEventListener("click", e => {
   switch (a) {
     case "open-add": ui.showAdd = true; break;
     case "toggle-add": ui.showAdd = !ui.showAdd; render(); return;
+    case "opt-select": if (ui.edit) { toast("Speichere zuerst die laufende Bearbeitung."); return; } ui.optSel = el.dataset.id; ui.listOpen = false; ui.confirm = null; render(); return;
     case "toggle-list": ui.listOpen = !ui.listOpen; render(); return;
     case "select": ui.selected = el.dataset.id; ui.listOpen = false; saveUi(); if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); return;
     case "add-subjects": {
@@ -1207,7 +1235,7 @@ document.addEventListener("click", e => {
       const custom = document.getElementById("custom-name").value.trim();
       if (custom) picked.push(newSubjectFrom({ name: custom, short: custom.slice(0, 3), p: 0, g: document.getElementById("custom-group").value }));
       if (!picked.length) { toast("Wähle mindestens ein Fach aus."); return; }
-      state.subjects.push(...picked); ui.showAdd = false; ui.selected = picked[0].id; saveUi();
+      state.subjects.push(...picked); ui.showAdd = false; ui.selected = picked[0].id; ui.optSel = picked[0].id; saveUi();
       commit(); toast(picked.length === 1 ? "Fach angelegt" : picked.length + " Fächer angelegt"); return;
     }
     case "del-grade": s.grades = s.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return;
