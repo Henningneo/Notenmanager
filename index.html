@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Notenmanager Oberstufe</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141c2b" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Notenmanager">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
@@ -1303,11 +1310,11 @@ async function login(code, remember) {
   if (!window.crypto || !crypto.subtle) throw new Error("Die verschlüsselte Anmeldung braucht eine sichere Verbindung (https). Öffne den Notenmanager über seinen Link.");
   if (n.length !== 12) throw new Error("Ein Code hat 12 Zeichen, zum Beispiel ABCD-EFGH-JKMN.");
   const h = await sha256hex("nm-code:" + n);
-  await fetchCodeList();
+  const listSrc = await fetchCodeList(true);
   if (codeList.blocked.includes(h)) throw new Error("Dieser Code wurde gesperrt. Wende dich an die Person, die dir den Code gegeben hat.");
   const idx = codeList.deleted.includes(h) ? -1 : CODE_HASHES.indexOf(h), extra = codeList.extra.find(x => x.h === h);
   const nr = idx >= 0 ? idx + 1 : extra ? extra.nr : null;
-  if (nr == null) throw new Error("Diesen Code gibt es nicht. Prüf die Schreibweise.");
+  if (nr == null) { const e = new Error(listSrc ? "Diesen Code gibt es nicht. Prüf die Schreibweise." : "Der Code konnte ohne Verbindung nicht geprüft werden. Versuch es mit Internet nochmal."); e.offline = !listSrc; throw e; }
   const docId = (await sha256hex("nm-doc:" + n)).slice(0, 40);
   const key = await deriveKey(n);
   let name = "";
@@ -1331,7 +1338,19 @@ function randomCodeStr() {
   while (s.length < 12) for (const x of crypto.getRandomValues(new Uint8Array(16))) if (x < 248 && s.length < 12) s += CODE_ALPHA[x % 31];
   return s;
 }
-async function fetchCodeList() {
+// Für den Offline-Start wird die zuletzt geladene Codeliste im Browser gemerkt (nur Prüfsummen und Verschlüsseltes).
+const LS_CODES = "notenmanager-codes-v1";
+function useCachedCodeList() {
+  try { const c = JSON.parse(readLS(LS_CODES) || "null"); if (c && Array.isArray(c.extra)) { codeList = c; return true; } } catch (e) {}
+  return false;
+}
+async function fetchCodeList(allowCache) {
+  if (allowCache && navigator.onLine === false && useCachedCodeList()) return "cache";
+  const ok = await fetchCodeListServer();
+  if (ok) { writeLS(LS_CODES, JSON.stringify(codeList)); return "server"; }
+  return allowCache && useCachedCodeList() ? "cache" : false;
+}
+async function fetchCodeListServer() {
   const d = await withTimeout(getDb(), 12000);
   if (!d) return false;
   try {
@@ -1598,8 +1617,11 @@ async function openProfile() {
   try { const raw = readLS(LS_PREFIX + my.docId); if (raw) state = migrate(await decryptObj(my.key, JSON.parse(raw))); } catch (e) {}
   if (session !== my) return;
   setSync("local"); updateHeader(); render();
+  await connectSync(my);
+}
+async function connectSync(my) {
   const d = await getDb();
-  if (!d || session !== my) return;
+  if (!d || session !== my || docRef) return;
   try { docRef = d.doc("nm/" + my.docId); } catch (e) { return; }
   serverSeen = false; noWrite = false; setSync("connecting");
   clearTimeout(snapTimer);
@@ -1661,9 +1683,19 @@ async function flush() {
 // Start: gemerkten Code verwenden oder Anmeldung zeigen
 (async () => {
   const saved = readLS(LS_SESSION);
-  if (saved) { try { await login(saved, true); return; } catch (e) { removeLS(LS_SESSION); } }
+  if (saved) { try { await login(saved, true); return; } catch (e) { if (!e || !e.offline) removeLS(LS_SESSION); } }
   updateHeader(); render();
 })();
+
+// Wieder online: Sync neu verbinden, falls Firebase beim Start nicht erreichbar war
+window.addEventListener("online", () => {
+  if (session && !docRef) connectSync(session);
+});
+
+// Als App installierbar und offline startbar (Service Worker)
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
+}
 </script>
 </body>
 </html>
