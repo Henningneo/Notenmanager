@@ -209,6 +209,13 @@ textarea { min-height: 120px; font-family: ui-monospace, Consolas, monospace; fo
   .subj-list.collapsed .subj-item { display: none; }
   .subj-list.collapsed .card-head { margin-bottom: 4px !important; }
 }
+/* Fächer & Noten: Handy erst Liste, dann Fach mit Zurück-Knopf; PC nebeneinander */
+.subj-detail { display: grid; gap: 12px; min-width: 0; }
+.subj-back { display: none; justify-self: start; }
+@media (max-width: 860px) {
+  .subj-layout.pick.detail > .subj-list, .subj-layout.pick:not(.detail) > .subj-detail { display: none; }
+  .subj-back { display: inline-flex; }
+}
 .mini .pt { min-width: 1.75em; height: 1.6em; font-size: .75rem; }
 .hjblock { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; }
 .hjblock-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -995,6 +1002,7 @@ function sortedSubjects() {
   const rank = s => s.core ? (/^deutsch/i.test(s.name) ? 0 : 1) : s.lf ? 2 : ex.includes(s.id) ? 3 + ex.indexOf(s.id) : 10;
   return state.subjects.slice().sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "de"));
 }
+const SUBJ_BACK = '<button class="btn sm subj-back" data-action="subj-back">‹ Alle Fächer</button>';
 function viewSubjects() {
   const L = hjLabels();
   const list = sortedSubjects();
@@ -1003,14 +1011,12 @@ function viewSubjects() {
   let h = "";
   if (!state.subjects.length) return emptyState();
   const c = computeAll();
-  const open = !!ui.listOpen || !sel;
-  h += '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><h2>Fächer</h2><div class="actions">' +
-    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button></div></div>";
+  h += '<section class="subj-layout pick' + (ui.subjDetail ? " detail" : "") + '"><div class="card subj-list"><div class="card-head" style="margin:4px 6px 6px"><div><h2>Fächer</h2><span class="muted small">Tippe ein Fach an</span></div></div>';
   for (const s of list) {
     h += '<button class="subj-item" data-action="select" data-id="' + s.id + '" aria-current="' + (sel && s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + badges(s) + '</span><span class="mini">' +
       [0, 1, 2, 3].map(i => { if (!s.hj[i]) return ""; const r = hjl(s, i); return r ? chip(r.final, c.sel.pick.has(s.id + ":" + i) ? "" : "out") : '<span class="pt out">·</span>'; }).join("") + "</span></button>";
   }
-  h += "</div>" + (sel ? viewSubject(sel, c, L) : "") + "</section>";
+  h += "</div>" + (sel ? '<div class="subj-detail">' + SUBJ_BACK + viewSubject(sel, c, L) + "</div>" : "") + "</section>";
   return h;
 }
 // Fächer anlegen, einstellen und löschen (Tab Optionen)
@@ -1532,15 +1538,13 @@ function uViewSubjects() {
   if (!list.length) return uEmpty();
   const sel = list.find(s => s.id === ui.uSel) || list[0];
   ui.uSel = sel.id;
-  const open = !!ui.listOpen;
-  let h = '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><h2>Fächer</h2><div class="actions">' +
-    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button></div></div>";
+  let h = '<section class="subj-layout pick' + (ui.subjDetail ? " detail" : "") + '"><div class="card subj-list"><div class="card-head" style="margin:4px 6px 6px"><div><h2>Fächer</h2><span class="muted small">Tippe ein Fach an</span></div></div>';
   for (const s of list) {
     const zw = uCalc(s, 0), j = uCalc(s, 1);
     h += '<button class="subj-item" data-action="u-select" data-id="' + s.id + '" aria-current="' + (s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + uBadges(s, true) + '</span><span class="mini">' +
       (zw ? uChip(zw.final, null, "", "Zwischenzeugnis") : '<span class="pt out">·</span>') + (j ? uChip(j.final, null, "", "Jahreszeugnis") : '<span class="pt out">·</span>') + "</span></button>";
   }
-  return h + "</div>" + uViewSubject(sel) + "</section>";
+  return h + "</div>" + '<div class="subj-detail">' + SUBJ_BACK + uViewSubject(sel) + "</div></section>";
 }
 function uFormula(r) {
   if (!r) return "";
@@ -1749,7 +1753,8 @@ document.addEventListener("click", e => {
     case "toggle-add": ui.showAdd = !ui.showAdd; render(); return;
     case "opt-select": if (ui.edit) { toast("Speichere zuerst die laufende Bearbeitung."); return; } ui.optSel = el.dataset.id; ui.listOpen = false; ui.confirm = null; render(); return;
     case "toggle-list": ui.listOpen = !ui.listOpen; render(); return;
-    case "select": ui.selected = el.dataset.id; ui.listOpen = false; saveUi(); if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); return;
+    case "select": ui.selected = el.dataset.id; ui.listOpen = false; ui.subjDetail = true; saveUi(); if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); window.scrollTo(0, 0); return;
+    case "subj-back": ui.subjDetail = false; ui.addGrade = null; render(); window.scrollTo(0, 0); return;
     case "add-subjects": {
       e.preventDefault();
       const picked = [...document.querySelectorAll("[data-tpl]:checked")].map(x => newSubjectFrom(TEMPLATES[+x.dataset.tpl]));
@@ -1774,7 +1779,7 @@ document.addEventListener("click", e => {
       if (isUms()) { state.ums.subjects = []; ui.confirm = null; ui.uSel = null; commit(); toast("Unter- und Mittelstufe gelöscht"); return; }
       const keep = state.settings, keepU = state.ums; state = defaultState(); state.settings = keep; state.ums = keepU; ui.confirm = null; commit(); toast("Alle Daten gelöscht"); return;
     }
-    case "u-select": ui.uSel = el.dataset.id; ui.listOpen = false; if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); return;
+    case "u-select": ui.uSel = el.dataset.id; ui.listOpen = false; ui.subjDetail = true; if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); window.scrollTo(0, 0); return;
     case "u-opt-select": if (ui.edit) { toast("Speichere zuerst die laufende Bearbeitung."); return; } ui.uOptSel = el.dataset.id; ui.listOpen = false; ui.confirm = null; render(); return;
     case "u-add-subjects": {
       e.preventDefault();
@@ -1970,7 +1975,7 @@ document.addEventListener("change", e => {
     stage(el);
   }
 });
-window.addEventListener("hashchange", () => { ui.confirm = null; if (currentTab() !== "optionen") ui.optDetail = false; render(); window.scrollTo(0, 0); });
+window.addEventListener("hashchange", () => { ui.confirm = null; if (currentTab() !== "optionen") ui.optDetail = false; if (currentTab() !== "faecher") ui.subjDetail = false; render(); window.scrollTo(0, 0); });
 
 async function copyFromLive() {
   if (forecast) { toast("Verlasse zuerst den Prognosemodus."); return; }
