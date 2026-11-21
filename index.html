@@ -1150,10 +1150,10 @@ function viewAbitur() {
 
 /* ---- Optionen ---- */
 function viewOptions() {
-  if (isUms()) return viewModeCard() + uViewOptions();
+  if (isUms()) return uViewOptions() + viewModeCard();
   const L = hjLabels();
   const edB = editing("base");
-  let h = viewModeCard() + viewManageSubjects(L);
+  let h = viewManageSubjects(L);
   h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
     (edB
       ? '<div class="grid" style="gap:14px"><label class="field" style="max-width:320px"><span>Jahrgangsstufen</span><select id="o-labels" data-opt="labels"><option value="g9"' + (state.settings.labels === "g9" ? " selected" : "") + ">12/1 – 13/2 (G9)</option><option value=\"g8\"" + (state.settings.labels === "g8" ? " selected" : "") + ">11/1 – 12/2 (G8)</option></select></label>" +
@@ -1186,7 +1186,7 @@ function viewOptions() {
     "<li><b>Abischnitt</b> (Anlage 13 GSO): 823–900 Punkte = 1,0, danach alle 18 Punkte eine Zehntelnote, 300 Punkte = 4,0. Unter 300 Punkten ist das Abitur nicht bestanden.</li>" +
     "<li>Solange nicht alle Noten feststehen, wird <b>hochgerechnet</b>: Block I aus dem Schnitt deiner bisher eingebrachten Leistungen, fehlende Prüfungen aus deinem Fachschnitt.</li></ul>" +
     '<p class="muted small">Ohne Gewähr. Verbindlich sind die Gymnasialschulordnung und deine Schule. Quellen: <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-29" target="_blank" rel="noopener">§ 29 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-44" target="_blank" rel="noopener">§ 44 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-48" target="_blank" rel="noopener">§ 48 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-53" target="_blank" rel="noopener">§ 53 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_17" target="_blank" rel="noopener">Anlage 10</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_23" target="_blank" rel="noopener">Anlage 13</a>, <a href="https://www.gymnasiale-oberstufe.bayern.de/" target="_blank" rel="noopener">gymnasiale-oberstufe.bayern.de</a>.</p></section>';
-  return h;
+  return h + viewModeCard();
 }
 
 function viewDataCard() {
@@ -1565,11 +1565,12 @@ function uViewSubjectSettings(s) {
   return h;
 }
 function viewModeCard() {
-  const m = state.settings.mode === "ums" ? "ums" : "os";
-  return '<section class="card"><div class="card-head"><div><h2>Modus</h2><span class="muted small">Deine Daten aus beiden Modi bleiben erhalten, du kannst jederzeit wechseln</span></div></div>' +
-    '<div class="seg" role="radiogroup" aria-label="Modus">' +
-    '<label class="check"><input type="radio" name="o-mode" id="o-mode-os" data-opt="mode" value="os"' + (m === "os" ? " checked" : "") + "> <span><b>Oberstufe</b> <span class=\"muted small\">12/1 bis 13/2, Punkte 0 bis 15, Abitur</span></span></label>" +
-    '<label class="check"><input type="radio" name="o-mode" id="o-mode-ums" data-opt="mode" value="ums"' + (m === "ums" ? " checked" : "") + "> <span><b>Unter- und Mittelstufe</b> <span class=\"muted small\">Klasse 5 bis 11, Noten 1 bis 6</span></span></label></div></section>";
+  const ums = isUms(), other = ums ? "Oberstufe" : "Unter- und Mittelstufe";
+  return '<section class="card"><div class="card-head"><div><h2>Modus</h2><span class="muted small">Deine Daten aus beiden Modi bleiben beim Wechseln erhalten</span></div></div>' +
+    '<p style="margin:0 0 12px">Aktuell: <b>' + (ums ? "Unter- und Mittelstufe" : "Oberstufe") + '</b> <span class="muted small">' + (ums ? "Klasse 5 bis 11, Noten 1 bis 6" : "12/1 bis 13/2, Punkte 0 bis 15, Abitur") + "</span></p>" +
+    '<div class="actions">' + (ui.confirm === "mode"
+      ? '<span class="small">Bist du sicher, dass du zur ' + other + ' wechseln willst?</span><button class="btn primary sm" data-action="mode-switch">Ja</button><button class="btn sm" data-action="cancel-confirm">Nein</button>'
+      : '<button class="btn sm" data-action="mode-ask">Zur ' + other + " wechseln</button>") + "</div></section>";
 }
 function uViewOptions() {
   const u = U(), edB = editing("ubase");
@@ -1679,6 +1680,11 @@ document.addEventListener("click", e => {
     case "ask-del": ui.confirm = "del-" + s.id; render(); return;
     case "ask-reset": ui.confirm = "reset"; render(); return;
     case "cancel-confirm": ui.confirm = null; render(); return;
+    case "mode-ask": ui.confirm = "mode"; render(); return;
+    case "mode-switch":
+      if (ui.edit) { if (ui.edit.key !== "admin") restoreConfig(ui.edit.backup); ui.edit = null; }
+      state.settings.mode = isUms() ? "os" : "ums"; ui.showAdd = false; ui.listOpen = false; ui.confirm = null; ui.addGrade = null;
+      commit(); window.scrollTo(0, 0); toast(isUms() ? "Modus: Unter- und Mittelstufe" : "Modus: Oberstufe"); return;
     case "del-subject": ui.edit = null; state.subjects = state.subjects.filter(x => x.id !== s.id); state.exams.forEach(x => { if (x.subjectId === s.id) x.subjectId = null; }); ui.confirm = null; ui.selected = null; commit(); toast("Fach gelöscht"); return;
     case "reset": {
       if (isUms()) { state.ums.subjects = []; ui.confirm = null; ui.uSel = null; commit(); toast("Unter- und Mittelstufe gelöscht"); return; }
@@ -1816,11 +1822,7 @@ document.addEventListener("change", e => {
   if (el.id === "bk-codes-file") { readFileInput(el, (txt, name) => { parseCodesBackup(txt).then(x => { ui.bkCodes = Object.assign(x, { file: name, confirm: false }); }, err => toast(err.message)).finally(render); }); return; }
   if (el.id === "ug-cat") { const w = document.getElementById("ug-w"); if (w) { const off = (UCATS[el.value] || UCATS.ub).group !== "klein"; w.disabled = off; w.title = off ? "Zählt nur bei kleinen Leistungsnachweisen" : ""; } return; }
   if (el.dataset.action === "u-override") { const s = uFind(el.dataset.id); if (s) { s.ov[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); } return; }
-  if (el.dataset.opt === "mode") {
-    if (ui.edit) { if (ui.edit.key !== "admin") restoreConfig(ui.edit.backup); ui.edit = null; }
-    state.settings.mode = el.value === "ums" ? "ums" : "os"; ui.showAdd = false; ui.listOpen = false; ui.confirm = null; ui.addGrade = null;
-    commit(); toast(isUms() ? "Modus: Unter- und Mittelstufe" : "Modus: Oberstufe"); return;
-  }
+
   if (el.dataset.uopt) {
     const k = el.dataset.uopt;
     state.ums[k] = k === "jgst" || k === "currentHj" ? +el.value : el.value;
