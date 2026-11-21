@@ -249,15 +249,17 @@ details.settings[open] > summary { margin-bottom: 12px; }
 "use strict";
 /* ================= Konstanten ================= */
 const CATS = {
-  sa:        { label: "Schulaufgabe", group: "gross" },
-  klausur:   { label: "Klausur", group: "gross" },
-  ex:        { label: "Stegreifaufgabe (Ex)", group: "klein" },
+  sa:        { label: "Klausur/Schulaufgabe", group: "gross" },
   abfrage:   { label: "Abfrage", group: "klein" },
-  kurzarbeit:{ label: "Kurzarbeit", group: "klein" },
-  referat:   { label: "Referat", group: "klein" },
-  muendlich: { label: "Mündliche Note", group: "klein" },
-  sonstige:  { label: "Sonstiger kleiner LN", group: "klein" },
-  praktisch: { label: "Praxis / Projekt", group: "praktisch" }
+  muendlich: { label: "Unterrichtsbeitrag", group: "klein" },
+  ex:        { label: "Ex", group: "klein" },
+  test:      { label: "Test", group: "klein" },
+  praktisch: { label: "Praxis / Projekt", group: "praktisch" },
+  // ältere Arten: nicht mehr auswählbar, bereits eingetragene Noten zählen weiter
+  klausur:   { label: "Klausur/Schulaufgabe", group: "gross", old: true },
+  kurzarbeit:{ label: "Kurzarbeit", group: "klein", old: true },
+  referat:   { label: "Referat", group: "klein", old: true },
+  sonstige:  { label: "Sonstiger kleiner LN", group: "klein", old: true }
 };
 const NOTE = ["6","5-","5","5+","4-","4","4+","3-","3","3+","2-","2","2+","1-","1","1+"];
 const LABELS = { g9: ["12/1","12/2","13/1","13/2"], g8: ["11/1","11/2","12/1","12/2"] };
@@ -773,7 +775,7 @@ function underCount(c) {
   return n;
 }
 // Vorgaben für Leistungsnachweise pro Halbjahr (Handout PuLSt)
-const KLEIN_M = ["abfrage", "referat", "muendlich"], KLEIN_S = ["ex", "kurzarbeit"];
+const KLEIN_M = ["abfrage", "referat", "muendlich"], KLEIN_S = ["ex", "kurzarbeit", "test"];
 function lnReq(s, h, gs) {
   if (s.type === "sport" || s.group === "none") return "";
   const kl = gs.filter(g => (CATS[g.cat] || CATS.sonstige).group === "klein");
@@ -928,7 +930,7 @@ function viewSubject(s, c, L) {
     '<div class="num" style="text-align:right"><span class="label">Σ Halbjahre</span><div style="font-family:var(--font-display);font-weight:700;font-size:1.6rem">' + ((sumSubject(s) || {}).sum ?? "–") + "</div></div></div>";
   h += '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
     '<label class="field"><span>Halbjahr</span><select id="g-hj">' + L.map((l, i) => s.hj[i] ? '<option value="' + i + '"' + (i === cur ? " selected" : "") + ">" + l + "</option>" : "").join("") + "</select></label>" +
-    '<label class="field"><span>Art</span><select id="g-cat">' + Object.entries(CATS).filter(([k]) => s.type === "wseminar" ? CATS[k].group === "klein" : true).map(([k, v]) => '<option value="' + k + '"' + (k === (ui.lastCat || "ex") ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Art</span><select id="g-cat">' + Object.entries(CATS).filter(([k, v]) => !v.old && (s.type === "wseminar" ? v.group === "klein" : k !== "praktisch" || s.type === "sport" || s.group === "sport" || s.group === "kumu")).map(([k, v]) => '<option value="' + k + '"' + (k === (ui.lastCat || "ex") ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
     '<label class="field"><span>Punkte</span><select id="g-pts">' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (p === 10 ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("") + "</select></label>" +
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"></label>' +
     '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
@@ -1092,7 +1094,7 @@ function viewOptions() {
     Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
   h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
     "<li><b>Halbjahresleistung</b> (§ 29 Abs. 2 GSO): Durchschnitt aus der Schulaufgabe bzw. Klausur und dem Durchschnitt der kleinen Leistungsnachweise, also 1 : 1. Gibt es mehrere große Leistungsnachweise, wird ihr Durchschnitt genommen. Gerundet wird kaufmännisch, auf 1 Punkt darf aber nicht aufgerundet werden. Vorgabe: 1 Schulaufgabe und mind. 2 kleine Leistungsnachweise, davon mind. 1 mündlich. In Fächern auf grundlegendem Niveau zählen in 13/2 nur die kleinen Leistungsnachweise (mind. 1 schriftlich, 1 mündlich).</li>" +
-    "<li><b>Kleine Leistungsnachweise</b> (Exen, Abfragen, Referate, mündliche Noten) zählen untereinander gleich. Wenn deine Lehrkraft anders gewichtet, stell das Gewicht bei der Note ein.</li>" +
+    "<li><b>Kleine Leistungsnachweise</b> (Exen, Tests, Abfragen, Unterrichtsbeiträge) zählen untereinander gleich. Wenn deine Lehrkraft anders gewichtet, stell das Gewicht bei der Note ein.</li>" +
     "<li><b>Kunst/Musik als Leistungsfach</b>: Schulaufgabe, Projekt bzw. Praxis und Ø kleine zu gleichen Teilen. <b>Sport</b>: (2 × Ø Praxis + Ø kleine) ÷ 3, im Leistungsfach zusätzlich 1 : 1 mit der Theorie. <b>W-Seminar</b>: nur kleine Leistungsnachweise.</li>" +
     "<li><b>Einbringung</b>: 40 Halbjahresleistungen. Pflicht sind:<ul>" +
     "<li>Deutsch, Mathematik, Leistungsfach und die Abiturfächer: alle 4</li>" +
@@ -1132,9 +1134,18 @@ function restoreConfig(str) {
   c.e.forEach((x, i) => Object.assign(state.exams[i], x));
   c.sub.forEach(o => { const s = findS(o.id); if (s) Object.assign(s, o); });
 }
+// Abiturfächer: Speichern nur, wenn keine Regel der Fächerwahl verletzt ist (Text der ersten verletzten Regel, sonst null)
+function saveBlocker(key) {
+  if (key !== "abi") return null;
+  const bad = abiChecks().find(x => x.st === "warn");
+  return bad ? bad.text : null;
+}
 function editing(key) { return !!(ui.edit && ui.edit.key === key); }
 function editBar(key) {
-  if (editing(key)) return '<div class="actions"><span class="edit-note">Bearbeitungsmodus</span><button class="btn sm" data-action="edit-cancel">Abbrechen</button><button class="btn primary sm" data-action="edit-save">' + ICON_SAVE + " Speichern</button></div>";
+  if (editing(key)) {
+    const block = saveBlocker(key);
+    return '<div class="actions"><span class="edit-note"' + (block ? ' style="color:var(--bad)"' : "") + ">" + (block ? "Speichern erst möglich, wenn die Regeln erfüllt sind" : "Bearbeitungsmodus") + '</span><button class="btn sm" data-action="edit-cancel">Abbrechen</button><button class="btn primary sm" data-action="edit-save"' + (block ? ' disabled title="' + block.replace(/<[^>]*>/g, "").replace(/"/g, "&quot;") + '"' : "") + ">" + ICON_SAVE + " Speichern</button></div>";
+  }
   return '<button class="btn sm" data-action="edit-start" data-key="' + key + '"' + (ui.edit ? ' disabled title="Speichere zuerst die andere Bearbeitung"' : "") + ">" + ICON_EDIT + " Bearbeiten</button>";
 }
 // Änderung an einer gesperrten Einstellung: nur vormerken, gespeichert wird mit „Speichern“
@@ -1186,6 +1197,7 @@ document.addEventListener("click", e => {
         saveCodeList().then(() => { ui.edit = null; toast("Codeliste gespeichert"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
         return;
       }
+      if (ui.edit && saveBlocker(ui.edit.key)) { toast("Nicht gespeichert: " + saveBlocker(ui.edit.key).replace(/<[^>]*>/g, "")); return; }
       ui.edit = null; ui.confirm = null; commit(); toast("Gespeichert"); return;
     case "edit-cancel":
       if (ui.edit && ui.edit.key === "admin") { ui.adminVault = JSON.parse(ui.edit.backup); ui.edit = null; render(); toast("Änderungen verworfen"); return; }
