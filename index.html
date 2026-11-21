@@ -723,8 +723,21 @@ function currentTab() {
   if (t === "abitur" && isUms()) return "uebersicht";
   return ["uebersicht", "faecher", "abitur", "optionen"].includes(t) ? t : "uebersicht";
 }
+// Halbjahr nach Datum: 2. Halbjahr vom 15. Februar bis 31. Juli, sonst 1. Halbjahr
+function dateHalf(d) { d = d || new Date(); const m = d.getMonth(), day = d.getDate(); return (m === 1 && day >= 15) || (m >= 2 && m <= 6) ? 1 : 0; }
+// Aktuelles Halbjahr automatisch nachführen: Oberstufe nach gewähltem Jahr (Q12/Q13) und Datum, Unter-/Mittelstufe nach Datum
+function syncCurrentHj() {
+  const half = dateHalf(), cur = state.settings.currentHj || 0;
+  let want = (cur >= 2 ? 2 : 0) + half;
+  if (half === 0 && cur === 1) want = 2;   // nach den Sommerferien: aus 12/2 wird 13/1
+  if (half === 0 && cur === 3) want = 3;   // nach dem Abitur bleibt 13/2
+  state.settings.currentHj = want;
+  if (state.ums) state.ums.currentHj = half;
+}
+function setOsYear(base) { state.settings.currentHj = base + dateHalf(); }
 function render() {
   if (!session) { app.innerHTML = viewLogin(); return; }
+  syncCurrentHj();
   updateModeUi();
   const tab = currentTab();
   document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
@@ -1166,7 +1179,9 @@ function viewOptions() {
       : '<dl class="kv"><div><dt>Jahrgangsstufen</dt><dd>' + (state.settings.labels === "g8" ? "11/1 – 12/2 (G8)" : "12/1 – 13/2 (G9)") + "</dd></div>" +
         "<div><dt>Kunst/Musik als Leistungsfach</dt><dd>" + (state.settings.kumuLf ? "an meiner Schule angeboten" : "nicht angeboten (nur Kolloquium)") + "</dd></div></dl>") + "</section>";
   h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
-    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="o-cur" data-opt="currentHj">' + L.map((l, i) => '<option value="' + i + '"' + (state.settings.currentHj === i ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label></div>" +
+    '<div class="form-row"><label class="field"><span>Ich bin in der</span><select id="o-year" data-action="os-year"><option value="0"' + (state.settings.currentHj < 2 ? " selected" : "") + ">Q" + L[0].split("/")[0] + '</option><option value="2"' + (state.settings.currentHj >= 2 ? " selected" : "") + ">Q" + L[2].split("/")[0] + "</option></select></label>" +
+    '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + L[state.settings.currentHj] + "</div></div></div>" +
+    '<p class="muted small" style="margin:0">Das Halbjahr stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar) und wird beim Eintragen von Noten vorausgewählt. Nach den Sommerferien geht es von der Q' + L[0].split("/")[0] + " automatisch in die Q" + L[2].split("/")[0] + ".</p>" +
     (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
     '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
     '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
@@ -1589,8 +1604,8 @@ function uViewOptions() {
       : '<dl class="kv"><div><dt>Jahrgangsstufe</dt><dd>' + u.jgst + "</dd></div><div><dt>Ausbildungsrichtung</dt><dd>" + URICHT[u.richt] + "</dd></div>" +
         "<div><dt>Rundung</dt><dd>" + (UROUND[u.round] || UROUND["50"]).label + "</dd></div></dl>") + "</section>";
   h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
-    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="uo-cur" data-uopt="currentHj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr (bis Zwischenzeugnis)</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr (bis Jahreszeugnis)</option></select></label></div>" +
-    '<p class="muted small" style="margin:0">Bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></div>' + viewDataCard() + "</section>";
+    '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + (u.currentHj === 1 ? "2. Halbjahr (bis Jahreszeugnis)" : "1. Halbjahr (bis Zwischenzeugnis)") + "</div></div>" +
+    '<p class="muted small" style="margin:0">Stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar), wird beim Eintragen von Noten vorausgewählt und bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></div>' + viewDataCard() + "</section>";
   h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
     "<li><b>Große Leistungsnachweise</b> sind nur die Schulaufgaben. <b>Kleine</b> sind schriftlich (Stegreifaufgaben, Kurzarbeiten, fachliche Leistungstests), mündlich (Abfragen, Unterrichtsbeiträge, Referate) und praktisch (§§ 21, 23 GSO). Kurzarbeiten zählen also als kleine Leistungsnachweise.</li>" +
     "<li><b>Jahresfortgangsnote</b> (§ 28 GSO): Aus allen Schulaufgaben wird ein Durchschnitt gebildet, aus allen kleinen Leistungsnachweisen ein zweiter. In Fächern mit 2 Schulaufgaben stehen beide grundsätzlich 1 : 1, bei mehr als 2 Schulaufgaben 2 : 1. In Fächern ohne Schulaufgaben zählen nur die kleinen Leistungsnachweise. Wie die kleinen untereinander gewichtet werden, legt die Lehrkraft fest; Standard ist hier 1, du kannst bei jeder Note ein anderes Gewicht eintragen.</li>" +
@@ -1869,6 +1884,7 @@ document.addEventListener("change", e => {
   if (el.dataset.action === "override") { const s = findS(el.dataset.id); s.override[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); return; }
   if (el.dataset.action === "sem") { state.seminar[el.dataset.k] = el.value === "" ? null : +el.value; commit(); return; }
   if (el.dataset.action === "exam") { const ex = state.exams[+el.dataset.i], k = el.dataset.k; ex[k] = k === "points" || k === "zusatz" ? (el.value === "" ? null : +el.value) : (el.value || null); if (k === "art") ex.art = el.value; if (k === "subjectId" || k === "art") stage(el); else commit(); return; }
+  if (el.dataset.action === "os-year") { setOsYear(+el.value); commit(); return; }
   if (el.dataset.opt) { const k = el.dataset.opt; state.settings[k] = el.type === "checkbox" ? el.checked : (k === "currentHj" ? +el.value : el.value); if (["subst", "kumuLf", "labels"].includes(k)) stage(el); else commit(); return; }
   if (el.dataset.field) {
     const s = findS(el.dataset.id), f = el.dataset.field;
