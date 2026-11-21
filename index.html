@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Notenmanager Oberstufe</title>
+<title>Notenmanager</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -228,6 +228,8 @@ details.settings[open] > summary { margin-bottom: 12px; }
 .ptable div { text-align: center; padding: 6px 0; border-radius: 6px; background: var(--surface-2); font-size: .82rem; }
 .ptable b { display: block; font-size: 1rem; }
 @media (max-width: 520px) { .ptable { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.seg { display: grid; gap: 10px; }
+.seg .check { align-items: flex-start; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -239,8 +241,8 @@ details.settings[open] > summary { margin-bottom: 12px; }
       <div class="brand">
         <div class="raute" aria-hidden="true"></div>
         <div>
-          <h1>Notenmanager Oberstufe</h1>
-          <div class="sub">Bayern · Qualifikationsphase · 0–15 Punkte</div>
+          <h1><span id="app-title">Notenmanager Oberstufe</span></h1>
+          <div class="sub" id="app-sub">Bayern · Qualifikationsphase · 0–15 Punkte</div>
         </div>
       </div>
       <div class="sync" id="sync" data-s="local" hidden><span class="dot"></span><span id="sync-text">Lokal gespeichert</span></div>
@@ -274,13 +276,13 @@ const CATS = {
   sa:        { label: "Klausur/Schulaufgabe", group: "gross" },
   abfrage:   { label: "Abfrage", group: "klein" },
   muendlich: { label: "Unterrichtsbeitrag", group: "klein" },
+  referat:   { label: "Referat", group: "klein" },
   ex:        { label: "Ex", group: "klein" },
   test:      { label: "Test", group: "klein" },
   praktisch: { label: "Praxis / Projekt", group: "praktisch" },
   // ältere Arten: nicht mehr auswählbar, bereits eingetragene Noten zählen weiter
   klausur:   { label: "Klausur/Schulaufgabe", group: "gross", old: true },
   kurzarbeit:{ label: "Kurzarbeit", group: "klein", old: true },
-  referat:   { label: "Referat", group: "klein", old: true },
   sonstige:  { label: "Sonstiger kleiner LN", group: "klein", old: true }
 };
 const NOTE = ["6","5-","5","5+","4-","4","4+","3-","3","3+","2-","2","2+","1-","1","1+"];
@@ -350,7 +352,8 @@ function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toS
 function defaultState() {
   return {
     v: 1, updatedAt: 0,
-    settings: { labels: "g9", currentHj: 0, includePlan: true, streichung: false, subst: "none", kumuLf: false },
+    settings: { mode: "os", labels: "g9", currentHj: 0, includePlan: true, streichung: false, subst: "none", kumuLf: false },
+    ums: uDefault(),
     subjects: [],
     seminar: { arbeit: null, praes: null },
     exams: [
@@ -371,6 +374,7 @@ function migrate(s) {
   out.settings = Object.assign(defaultState().settings, s.settings || {});
   out.seminar = Object.assign({ arbeit: null, praes: null }, s.seminar || {});
   out.subjects = Array.isArray(s.subjects) ? s.subjects.map(fixSubject) : [];
+  out.ums = uMigrate(s.ums);
   out.exams = Array.isArray(s.exams) && s.exams.length === 5 ? s.exams.map(e => Object.assign({ subjectId: null, points: null, zusatz: null, art: "schriftlich" }, e)) : d.exams;
   return out;
 }
@@ -712,19 +716,28 @@ const app = document.getElementById("app");
 function currentTab() {
   const t = (location.hash || "").slice(1);
   if (t === "admin") return session && session.admin ? "admin" : "uebersicht";
+  if (t === "abitur" && isUms()) return "uebersicht";
   return ["uebersicht", "faecher", "abitur", "optionen"].includes(t) ? t : "uebersicht";
 }
 function render() {
   if (!session) { app.innerHTML = viewLogin(); return; }
+  updateModeUi();
   const tab = currentTab();
   document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
   const focusId = document.activeElement && document.activeElement.id;
   document.body.classList.toggle("forecast", !!forecast);
   app.innerHTML = (forecast ? '<div class="fc-bar"><div><b>Prognosemodus</b><span class="small">Probier Noten aus, so viel du willst. Nichts davon wird gespeichert.</span></div><button class="btn sm" data-action="forecast-end">Prognosemodus verlassen</button></div>' : "") +
-    (tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : tab === "optionen" ? viewOptions() : tab === "admin" ? viewAdmin() : viewOverview());
+    (tab === "admin" ? viewAdmin() : tab === "optionen" ? viewOptions() : isUms() ? (tab === "faecher" ? uViewSubjects() : uViewOverview()) :
+      (tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : viewOverview()));
   if (focusId) { const el = document.getElementById(focusId); if (el && el.tagName !== "BUTTON") el.focus(); }
 }
 
+function updateModeUi() {
+  const u = isUms();
+  document.getElementById("app-title").textContent = u ? "Notenmanager" : "Notenmanager Oberstufe";
+  document.getElementById("app-sub").textContent = u ? "Bayern · Unter- und Mittelstufe · Noten 1–6" : "Bayern · Qualifikationsphase · 0–15 Punkte";
+  const ab = document.querySelector('nav.tabs a[data-tab="abitur"]'); if (ab) ab.hidden = u;
+}
 function emptyState() {
   return '<section class="card empty"><div class="raute" style="width:44px;height:44px" aria-hidden="true"></div>' +
     "<h2>Leg deine Fächer an</h2><p class=\"muted\">Wähle deine Fächer unter Optionen aus den Vorlagen oder leg eigene an. Danach trägst du pro Halbjahr Schulaufgaben, Klausuren, Exen und Abfragen ein. Halbjahresleistung, Einbringung und Abischnitt rechnet der Notenmanager selbst aus.</p>" +
@@ -1137,9 +1150,10 @@ function viewAbitur() {
 
 /* ---- Optionen ---- */
 function viewOptions() {
+  if (isUms()) return viewModeCard() + uViewOptions();
   const L = hjLabels();
   const edB = editing("base");
-  let h = viewManageSubjects(L);
+  let h = viewModeCard() + viewManageSubjects(L);
   h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
     (edB
       ? '<div class="grid" style="gap:14px"><label class="field" style="max-width:320px"><span>Jahrgangsstufen</span><select id="o-labels" data-opt="labels"><option value="g9"' + (state.settings.labels === "g9" ? " selected" : "") + ">12/1 – 13/2 (G9)</option><option value=\"g8\"" + (state.settings.labels === "g8" ? " selected" : "") + ">11/1 – 12/2 (G8)</option></select></label>" +
@@ -1151,11 +1165,7 @@ function viewOptions() {
     (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
     '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
     '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
-    '<div class="card"><div class="card-head"><h2>Daten</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
-    '<div class="actions"><button class="btn" data-action="export">Backup herunterladen</button><button class="btn" data-action="copy">In Zwischenablage kopieren</button></div>' +
-    '<label class="field"><span>Backup einfügen (JSON) oder Datei wählen</span><textarea id="import-text" placeholder="{ &quot;v&quot;: 1, … }"></textarea></label>' +
-    '<div class="actions"><input type="file" id="import-file" accept=".json,application/json" style="max-width:100%"><button class="btn primary" data-action="import">Importieren</button></div>' +
-    '<div class="actions">' + (ui.confirm === "reset" ? '<span class="small">Alle Fächer und Noten löschen?</span><button class="btn danger solid sm" data-action="reset">Ja, alles löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>' : '<button class="btn danger sm" data-action="ask-reset">Alle Daten löschen</button>') + "</div></div></div></section>";
+    viewDataCard() + "</section>";
   h += '<section class="card"><div class="card-head"><h2>Punkte und Noten</h2></div><div class="ptable">' +
     Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
   h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
@@ -1179,6 +1189,417 @@ function viewOptions() {
   return h;
 }
 
+function viewDataCard() {
+  return '<div class="card"><div class="card-head"><h2>Daten</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
+    '<div class="actions"><button class="btn" data-action="export">Backup herunterladen</button><button class="btn" data-action="copy">In Zwischenablage kopieren</button></div>' +
+    '<label class="field"><span>Backup einfügen (JSON) oder Datei wählen</span><textarea id="import-text" placeholder="{ &quot;v&quot;: 1, … }"></textarea></label>' +
+    '<div class="actions"><input type="file" id="import-file" accept=".json,application/json" style="max-width:100%"><button class="btn primary" data-action="import">Importieren</button></div>' +
+    '<div class="actions">' + (ui.confirm === "reset" ? '<span class="small">' + (isUms() ? "Alle Fächer und Noten der Unter- und Mittelstufe löschen?" : "Alle Fächer und Noten löschen?") + '</span><button class="btn danger solid sm" data-action="reset">Ja, alles löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>' : '<button class="btn danger sm" data-action="ask-reset">Alle Daten löschen</button>') + "</div></div></div>";
+}
+/* ================= Unter- und Mittelstufe (Jgst. 5–11, Noten 1–6) ================= */
+// Rechtsgrundlage: §§ 22, 23, 28, 30–33 GSO (Fassung ab 01.08.2026)
+const UCATS = {
+  sa:      { label: "Schulaufgabe", group: "gross" },
+  ex:      { label: "Ex", group: "klein", art: "s" },
+  test:    { label: "Test", group: "klein", art: "s" },
+  abfrage: { label: "Abfrage", group: "klein", art: "m" },
+  ub:      { label: "Unterrichtsbeitrag", group: "klein", art: "m" },
+  referat: { label: "Referat", group: "klein", art: "m" },
+  // ältere Arten: nicht mehr auswählbar, bereits eingetragene Noten zählen weiter
+  ka:      { label: "Kurzarbeit", group: "klein", art: "s", old: true },
+  praxis:  { label: "Praktische Leistung / Projekt", group: "klein", art: "p", old: true }
+};
+// Eingabe nur ganze Noten 1 bis 6 (ältere Einträge mit Tendenz zählen als Drittelnote weiter)
+const UNOTES = ["1", "2", "3", "4", "5", "6"];
+const UROUND = {
+  "50": { v: 0.5, label: "bis x,50 die bessere Note (2,50 → 2)" },
+  "55": { v: 0.55, label: "bis x,55 die bessere Note (2,55 → 2)" },
+  "49": { v: 0.4999, label: "ab x,50 die schlechtere Note (2,50 → 3)" }
+};
+const URICHT = {
+  sg: "Sprachlich", ntg: "Naturwissenschaftlich-technologisch", wsgw: "Wirtschaftswissenschaftlich",
+  wsgs: "Sozialwissenschaftlich", mug: "Musisch", hg: "Humanistisch"
+};
+// Zusätzliches Kernfach je Ausbildungsrichtung (§ 16 Abs. 2 GSO); SG: 3. Fremdsprache, HG: Griechisch (beide Fremdsprachen)
+const UKERN_EXTRA = { ntg: /^chemie/i, wsgw: /^wirtschaft/i, wsgs: /^politik/i, mug: /^musik/i };
+// k: d = Deutsch, m = Mathematik, fs = Fremdsprache, ph = Physik
+const UTEMPLATES = [
+  { name: "Deutsch", short: "D", k: "d" },
+  { name: "Mathematik", short: "M", k: "m" },
+  { name: "Englisch", short: "E", k: "fs" },
+  { name: "Latein", short: "L", k: "fs" },
+  { name: "Französisch", short: "F", k: "fs" },
+  { name: "Spanisch", short: "Sp", k: "fs" },
+  { name: "Italienisch", short: "It", k: "fs" },
+  { name: "Griechisch", short: "Gr", k: "fs" },
+  { name: "Physik", short: "Ph", k: "ph" },
+  { name: "Chemie", short: "C" },
+  { name: "Biologie", short: "B" },
+  { name: "Natur und Technik", short: "NuT" },
+  { name: "Informatik", short: "Inf" },
+  { name: "Geschichte", short: "G" },
+  { name: "Geographie", short: "Geo" },
+  { name: "Politik und Gesellschaft", short: "PuG" },
+  { name: "Wirtschaft und Recht", short: "WR" },
+  { name: "Katholische Religionslehre", short: "K" },
+  { name: "Evangelische Religionslehre", short: "Ev" },
+  { name: "Ethik", short: "Eth" },
+  { name: "Kunst", short: "Ku" },
+  { name: "Musik", short: "Mu" },
+  { name: "Sport", short: "Spo" }
+];
+function uDefault() { return { jgst: 8, richt: "sg", currentHj: 0, tend: "t", round: "50", subjects: [] }; }
+function uFixSubject(x) {
+  return Object.assign({ id: uid(), name: "Fach", short: "", sa: 0, wmode: "auto", kern: false, vr: null, ov: [null, null], grades: [] }, x,
+    { ov: Array.isArray(x.ov) && x.ov.length === 2 ? x.ov.slice() : [null, null], grades: Array.isArray(x.grades) ? x.grades.slice() : [] });
+}
+function uMigrate(u) {
+  const d = uDefault();
+  if (!u || typeof u !== "object") return d;
+  const o = Object.assign(d, u);
+  o.subjects = Array.isArray(u.subjects) ? u.subjects.map(uFixSubject) : [];
+  return o;
+}
+function isUms() { return state.settings.mode === "ums"; }
+function U() { return state.ums; }
+function uFind(id) { return U().subjects.find(s => s.id === id); }
+function uTend() { return 1 / 3; }
+function noteVal(lbl, t) {
+  const m = /^([1-6])([+-])?$/.exec(lbl);
+  if (m) { const b = +m[1]; return Math.max(1, Math.min(6, m[2] === "+" ? b - t : m[2] === "-" ? b + t : b)); }
+  const r = /^([1-5])-([2-6])$/.exec(lbl);
+  return r ? +r[1] + 0.5 : null;
+}
+function uVal(g) { return noteVal(g.n, uTend()); }
+function uCat(g) { return UCATS[g.cat] || UCATS.ub; }
+// Gewichtung große : kleine (§ 28 Abs. 1 GSO): 2 Schulaufgaben 1 : 1, mehr als 2 dann 2 : 1, ohne Schulaufgaben nur kleine
+function uW(s) { if (s.wmode === "1:1") return 1; if (s.wmode === "2:1") return 2; if (s.wmode === "klein") return 0; return s.sa > 2 ? 2 : s.sa > 0 ? 1 : 0; }
+function uWLabel(s) { const w = uW(s); return w === 2 ? "2 : 1" : w === 1 ? "1 : 1" : "nur kleine"; }
+function uRound(x) {
+  const lim = (UROUND[U().round] || UROUND["50"]).v;
+  const b = Math.floor(x + 1e-9), f = x - b;
+  return Math.max(1, Math.min(6, f <= lim + 1e-9 ? b : b + 1));
+}
+// upto: 0 = Zwischenzeugnis (1. Halbjahr), 1 = Jahreszeugnis (ganzes Schuljahr)
+function uCalc(s, upto) {
+  if (s.ov[upto] != null) return { raw: s.ov[upto], final: s.ov[upto], manual: true, gross: null, klein: null, nSA: 0, nK: 0, formula: "manuell eingetragen" };
+  const gs = s.grades.filter(g => g.hj <= upto && uVal(g) != null);
+  const w = uW(s);
+  const saG = gs.filter(g => uCat(g).group === "gross"), klG = gs.filter(g => uCat(g).group === "klein");
+  // In Fächern ohne Schulaufgaben zählt alles als kleiner Leistungsnachweis
+  const sa = w > 0 ? saG.map(uVal) : [];
+  const kl = w > 0 ? klG : gs;
+  const gross = avg(sa);
+  let ks = 0, kw = 0;
+  kl.forEach(g => { const gw = g.weight > 0 ? g.weight : 1; ks += uVal(g) * gw; kw += gw; });
+  const klein = kw ? ks / kw : null;
+  let raw = null, formula = "";
+  if (gross != null && klein != null) { raw = (w * gross + klein) / (w + 1); formula = w === 2 ? "(2 × Ø Schulaufgaben + Ø kleine) ÷ 3" : "(Ø Schulaufgaben + Ø kleine) ÷ 2"; }
+  else if (gross != null) { raw = gross; formula = "Ø Schulaufgaben (noch keine kleinen Leistungsnachweise)"; }
+  else if (klein != null) { raw = klein; formula = w > 0 ? "Ø kleine (noch keine Schulaufgabe)" : "Ø kleine Leistungsnachweise"; }
+  if (raw == null) return null;
+  return { raw, final: uRound(raw), gross, klein, w, nSA: sa.length, sumSA: sa.reduce((a, b) => a + b, 0), nK: kl.length, manual: false, formula };
+}
+function uCur(s) { return uCalc(s, U().currentHj === 0 ? 0 : 1); }
+function uBand(n) { if (n == null) return ""; if (n <= 1) return "b5"; if (n <= 2) return "b4"; if (n <= 3) return "b3"; if (n <= 4) return "b2"; return "b1"; }
+function uChip(n, label, extra, title) {
+  return '<span class="pt ' + uBand(n) + " " + (extra || "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + (n == null ? "–" : esc(label != null ? label : String(n))) + "</span>";
+}
+function uVrFach(s) {
+  if (s.vr != null) return s.vr;
+  if (/^sport/i.test(s.name)) return false;
+  if (/^musik/i.test(s.name)) return U().jgst >= 7 || U().richt === "mug";
+  return true;
+}
+function uIsKern(s) { return !!s.kern; }
+function uTplKind(name) { const t = UTEMPLATES.find(t => t.name.toLowerCase() === String(name).trim().toLowerCase()); return t ? t.k || "" : ""; }
+function uKernDefault(t) { const ex = UKERN_EXTRA[U().richt]; return ["d", "m", "fs", "ph"].includes(t.k) || !!(ex && ex.test(t.name)); }
+// Mindestzahl Schulaufgaben (§ 22 Abs. 1 GSO) als Vorschlag; die Schule kann mehr festlegen
+function uSaDefault(t) {
+  const j = U().jgst, ex = UKERN_EXTRA[U().richt];
+  if (t.k === "d") return 3;
+  if (t.k === "m") return j <= 7 ? 4 : 3;
+  if (t.k === "fs") return j <= 7 ? 4 : 3;
+  if (t.k === "ph") return j >= 8 ? 2 : 0;
+  if (ex && ex.test(t.name)) return 2;
+  return 0;
+}
+function uNewFrom(t) { return uFixSubject({ id: uid(), name: t.name, short: t.short || "", sa: uSaDefault(t), kern: uKernDefault(t), wmode: "auto" }); }
+function uSorted() {
+  const rank = s => { const k = uTplKind(s.name); return k === "d" ? 0 : k === "m" ? 1 : k === "fs" ? 2 : s.kern ? 3 : 10; };
+  return U().subjects.slice().sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, "de"));
+}
+function uBadges(s, short) {
+  return (s.kern ? '<span class="badge lf">Kern</span> ' : "") + (!short && !uVrFach(s) ? '<span class="badge">kein Vorrückungsfach</span> ' : "") +
+    (s.sa ? '<span class="badge abi">' + s.sa + " SA</span>" : "");
+}
+function uHjName(h) { return h === 0 ? "1. Halbjahr" : "2. Halbjahr"; }
+
+/* ---- Vorrücken (§§ 30–33 GSO) ---- */
+function uVorrueckenItems() {
+  const u = U(), items = [], add = (st, text, detail) => items.push({ st, text, detail });
+  const rows = u.subjects.filter(uVrFach).map(s => ({ s, r: uCalc(s, 1) })).filter(x => x.r);
+  const six = rows.filter(x => x.r.final === 6), five = rows.filter(x => x.r.final === 5);
+  const names = a => a.map(x => esc(x.s.name)).join(", ");
+  if (!rows.length) { add("open", "Vorrücken in die nächste Jahrgangsstufe", "noch keine Noten"); return { items, level: "open" }; }
+  add(six.length ? "warn" : "ok", "Keine Note 6 in einem Vorrückungsfach", six.length ? names(six) : "passt");
+  add(five.length >= 2 ? "warn" : "ok", "Höchstens einmal Note 5 in Vorrückungsfächern", five.length ? five.length + "× · " + names(five) : "passt");
+  const fail = six.length >= 1 || five.length >= 2;
+  let level = fail ? "warn" : five.length ? "tight" : "ok";
+  if (fail && (u.jgst === 10 || u.jgst === 11)) {
+    // § 32 GSO: nur bei genau einer 6 oder genau zwei 5 (kein weiteres Fach mit 5 oder 6)
+    const single = (six.length === 1 && five.length === 0) || (six.length === 0 && five.length === 2);
+    const bad = six.concat(five), badKern = bad.some(x => uIsKern(x.s));
+    const pool = rows.filter(x => !bad.includes(x) && (!badKern || uIsKern(x.s)));
+    const ones = pool.filter(x => x.r.final === 1).length, twos = pool.filter(x => x.r.final <= 2).length;
+    const kern3 = rows.filter(x => uIsKern(x.s) && x.r.final <= 3).length;
+    const comp = ones >= 1 || twos >= 2 || kern3 >= 3;
+    add(single && comp ? "ok" : "warn", "Notenausgleich rechnerisch möglich (§ 32 GSO)",
+      !single ? "nein: mehr als eine 6 bzw. zwei 5" : comp ? (ones >= 1 ? "Note 1 vorhanden" : twos >= 2 ? "zweimal Note 2" : "3 Kernfächer mit 3 oder besser") + (badKern ? " (Kernfach nur durch Kernfächer)" : "") : "kein Ausgleich: 1× Note 1, 2× Note 2 oder 3 Kernfächer mit mind. 3 nötig");
+    if (single && comp) level = "ausgleich";
+  } else if (fail) {
+    add("open", "Möglich: Vorrücken auf Probe (§ 31) oder Nachprüfung (§ 33, Jgst. 6–9)", "entscheidet die Schule");
+  }
+  return { items, level };
+}
+
+/* ---- Ansichten ---- */
+function uEmpty() {
+  return '<section class="card empty"><div class="raute" style="width:44px;height:44px" aria-hidden="true"></div>' +
+    "<h2>Leg deine Fächer an</h2><p class=\"muted\">Wähle unter Optionen deine Fächer aus und stell Jahrgangsstufe und Ausbildungsrichtung ein. Danach trägst du Schulaufgaben, Exen, Abfragen und Unterrichtsbeiträge mit Noten von 1 bis 6 ein. Zwischen- und Jahreszeugnisnote rechnet der Notenmanager selbst aus.</p>" +
+    '<div class="actions" style="justify-content:center"><a class="btn primary" href="#optionen" data-action="open-add">Fächer auswählen</a></div></section>';
+}
+function uViewOverview() {
+  const u = U();
+  if (!u.subjects.length) return uEmpty();
+  const upto = u.currentHj === 0 ? 0 : 1, zName = upto === 0 ? "Zwischenzeugnis" : "Jahreszeugnis";
+  const list = uSorted(), res = list.map(s => ({ s, zw: uCalc(s, 0), j: uCalc(s, 1) }));
+  const cur = res.map(x => upto === 0 ? x.zw : x.j).filter(Boolean);
+  const avgN = avg(cur.map(r => r.final)), avgRaw = avg(cur.map(r => r.raw));
+  const vr = uVorrueckenItems();
+  const nGrades = u.subjects.reduce((a, s) => a + s.grades.length, 0), nSA = u.subjects.reduce((a, s) => a + s.grades.filter(g => g.cat === "sa").length, 0);
+  const low = cur.filter(r => r.final >= 5).length;
+  const VR = { ok: ["auf Kurs", "keine 6 und höchstens eine 5"], tight: ["knapp", "eine Note 5 in einem Vorrückungsfach"], warn: ["gefährdet", "Note 6 oder zweimal Note 5"], ausgleich: ["Notenausgleich?", "rechnerisch möglich, entscheidet die Schule"], open: ["–", "noch keine Noten"] }[vr.level];
+  let h = forecast ? "" : '<div class="fc-start"><span class="muted small">Was wäre, wenn? Im Prognosemodus kannst du Noten ausprobieren, ohne deine echten Daten zu ändern.</span><button class="btn sm" data-action="forecast-start">Prognosemodus starten</button></div>';
+  h += '<section class="grid g-hero">';
+  h += '<div class="card hero"><span class="label">Notenschnitt ' + zName + " · Jahrgangsstufe " + u.jgst + "</span>" +
+    '<div class="schnitt num">' + (avgN != null ? fmt(avgN, 2) : "–") + "</div>" +
+    '<div class="meta num">' + (avgN != null ? "Durchschnitt der gerundeten Fachnoten aus " + cur.length + " Fächern" : "Noch keine Noten eingetragen") + "</div>" +
+    '<div class="meta small">' + (avgRaw != null ? "Ungerundet: " + fmt(avgRaw, 2) + " · " : "") + "Stand: " + uHjName(u.currentHj) + "</div></div>";
+  h += '<div class="stats">' +
+    stat("Vorrücken", VR[0], VR[1]) +
+    stat("Fächer mit 5 oder 6", low + " <small>/ " + cur.length + "</small>", upto === 0 ? "im Zwischenzeugnis" : "im Jahreszeugnis") +
+    stat("Beste Fachnote", cur.length ? Math.min(...cur.map(r => r.final)) : "–", cur.length ? res.filter(x => (upto === 0 ? x.zw : x.j) && (upto === 0 ? x.zw : x.j).final === Math.min(...cur.map(r => r.final))).map(x => esc(x.s.short || x.s.name)).join(", ") : "") +
+    stat("Eingetragene Noten", nGrades, nSA + " Schulaufgaben") + "</div></section>";
+  // Tabelle
+  h += '<section class="card"><div class="card-head"><h2>Zeugnisnoten</h2><span class="muted small">Zwischenzeugnis = 1. Halbjahr · Jahreszeugnis = ganzes Schuljahr</span></div>' +
+    '<div class="tbl-wrap"><table><thead><tr><th>Fach</th><th class="c">Zwischenzeugnis</th><th class="c">Jahreszeugnis</th><th class="c">Ø Schulaufgaben</th><th class="c">Ø kleine</th><th class="c">Gewichtung</th></tr></thead><tbody>';
+  for (const x of res) {
+    const cell = r => r ? uChip(r.final, null, "", (r.manual ? "manuell" : "exakt " + fmt(r.raw, 2))) + (r.manual ? "" : ' <span class="muted small num">' + fmt(r.raw, 2) + "</span>") : '<span class="muted small">offen</span>';
+    const j = x.j;
+    h += '<tr><td><div class="subj-cell"><a href="#faecher" data-action="u-select" data-id="' + x.s.id + '" style="color:inherit;text-decoration:none;font-weight:600">' + subjName(x.s) + "</a> " + uBadges(x.s) + "</div></td>" +
+      '<td class="c">' + cell(x.zw) + '</td><td class="c">' + cell(j) + "</td>" +
+      '<td class="c num small">' + (j && j.gross != null ? fmt(j.gross, 2) + ' <span class="muted">(' + j.nSA + (x.s.sa ? " von " + x.s.sa : "") + ")</span>" : x.s.sa ? '<span class="muted">0 von ' + x.s.sa + "</span>" : "–") + "</td>" +
+      '<td class="c num small">' + (j && j.klein != null ? fmt(j.klein, 2) + ' <span class="muted">(' + j.nK + ")</span>" : "–") + "</td>" +
+      '<td class="c small">' + uWLabel(x.s) + "</td></tr>";
+  }
+  h += "</tbody></table></div>" +
+    '<div class="legend"><span>' + uChip(1) + " sehr gut</span><span>" + uChip(2) + " gut</span><span>" + uChip(3) + " befriedigend</span><span>" + uChip(4) + " ausreichend</span><span>" + uChip(5) + " mangelhaft / " + uChip(6) + " ungenügend</span></div></section>";
+  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Vorrücken</h2><span class="muted small">§§ 30–33 GSO · nach dem aktuellen Stand des Schuljahres</span></div>' + checkList(vr.items) +
+    '<p class="muted small" style="margin:12px 0 0">Vom Vorrücken ausgeschlossen ist, wer im Jahreszeugnis in einem Vorrückungsfach die Note 6 oder in zwei Vorrückungsfächern die Note 5 hat. Sport ist kein Vorrückungsfach, Musik erst ab Jahrgangsstufe 7 (am Musischen Gymnasium immer).</p></div>' +
+    uViewTips() + "</section>";
+  return h;
+}
+function uViewTips() {
+  const rows = [];
+  for (const s of uSorted()) {
+    const r = uCalc(s, 1);
+    if (!r || r.manual || uW(s) === 0 || r.nSA >= s.sa) continue;
+    const t = uNeedText(s, r, uRound(r.raw) > 1 ? uRound(r.raw) - 1 : 1);
+    if (t) rows.push("<li><b>" + esc(s.name) + "</b>: " + t + "</li>");
+  }
+  return '<div class="card"><div class="card-head"><h2>Nächste Schulaufgaben</h2><span class="muted small">Für die nächstbessere Jahresnote, bei einer 1 zum Halten</span></div>' +
+    (rows.length ? '<ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">' + rows.join("") + "</ul>" : '<p class="muted small" style="margin:0">Sobald in einem Fach Noten stehen und noch Schulaufgaben offen sind, steht hier, was du in der nächsten Schulaufgabe brauchst.</p>') + "</div>";
+}
+// Welche Note braucht die nächste Schulaufgabe, damit die Jahresnote höchstens „target“ wird?
+function uNeedMax(s, r, target) {
+  const w = uW(s), lim = (UROUND[U().round] || UROUND["50"]).v, T = target + lim;
+  const n = r.nSA, sum = r.sumSA || 0;
+  let v;
+  if (r.klein == null) v = T * (n + 1) - sum;
+  else v = ((T * (w + 1) - r.klein) / w) * (n + 1) - sum;
+  return v;
+}
+function uBestLabelUpTo(v) {
+  const t = uTend();
+  const ok = UNOTES.filter(l => noteVal(l, t) <= v + 1e-9);
+  return ok.length ? ok[ok.length - 1] : null;
+}
+function uNeedText(s, r, target, compact) {
+  const v = uNeedMax(s, r, target);
+  if (compact) {
+    const l = v >= 1 - 1e-9 && v < 6 ? uBestLabelUpTo(v) : null;
+    return "Note " + target + ": " + (v < 1 - 1e-9 ? "nicht mehr erreichbar" : v >= 6 ? "schon sicher" : "<b>" + esc(l || "1") + "</b> oder besser");
+  }
+  if (v < 1 - 1e-9) return "Jahresnote " + target + " mit einer Schulaufgabe nicht mehr erreichbar";
+  if (v >= 6) return "Jahresnote " + target + " ist schon sicher";
+  const l = uBestLabelUpTo(v);
+  return "für Jahresnote " + target + " in der nächsten Schulaufgabe " + (l ? "<b>" + esc(l) + "</b> oder besser" : "eine 1");
+}
+function uViewSubjects() {
+  const list = uSorted();
+  if (!list.length) return uEmpty();
+  const sel = list.find(s => s.id === ui.uSel) || list[0];
+  ui.uSel = sel.id;
+  const open = !!ui.listOpen;
+  let h = '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><h2>Fächer</h2><div class="actions">' +
+    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button></div></div>";
+  for (const s of list) {
+    const zw = uCalc(s, 0), j = uCalc(s, 1);
+    h += '<button class="subj-item" data-action="u-select" data-id="' + s.id + '" aria-current="' + (s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + uBadges(s, true) + '</span><span class="mini">' +
+      (zw ? uChip(zw.final, null, "", "Zwischenzeugnis") : '<span class="pt out">·</span>') + (j ? uChip(j.final, null, "", "Jahreszeugnis") : '<span class="pt out">·</span>') + "</span></button>";
+  }
+  return h + "</div>" + uViewSubject(sel) + "</section>";
+}
+function uFormula(r) {
+  if (!r) return "";
+  if (r.manual) return "Manuell eingetragen";
+  const parts = [];
+  if (r.gross != null) parts.push("Ø Schulaufgaben " + fmt(r.gross, 2));
+  if (r.klein != null) parts.push("Ø kleine " + fmt(r.klein, 2));
+  return esc(r.formula) + " → " + parts.join(" · ") + " = <b>" + fmt(r.raw, 2) + "</b> → Note " + r.final;
+}
+function uViewSubject(s) {
+  const u = U(), today = new Date().toISOString().slice(0, 10);
+  const j = uCalc(s, 1), zw = uCalc(s, 0);
+  let h = '<div class="grid" style="gap:16px;min-width:0">';
+  h += '<div class="card"><div class="card-head"><div><h2>' + esc(s.name) + '</h2><div style="margin-top:6px">' + uBadges(s) +
+    '<span class="muted small"> Gewichtung Schulaufgaben : kleine = ' + uWLabel(s) + (s.sa ? " · " + s.sa + " Schulaufgaben im Schuljahr" : " · Fach ohne Schulaufgaben") + "</span></div></div>" +
+    '<div class="num" style="text-align:right"><span class="label">Jahresnote bisher</span><div style="font-family:var(--font-display);font-weight:700;font-size:1.6rem">' + (j ? j.final : "–") + "</div>" +
+    (j && !j.manual ? '<span class="muted small">' + fmt(j.raw, 2) + "</span>" : "") + "</div></div>";
+  const cats = Object.entries(UCATS).filter(([k, v]) => !v.old && (uW(s) > 0 || k !== "sa"));
+  const selCat = cats.some(([k]) => k === ui.uLastCat) ? ui.uLastCat : (uW(s) > 0 ? "sa" : "ex"), wOff = UCATS[selCat].group !== "klein" || false;
+  if (ui.addGrade !== s.id) {
+    h += '<div class="actions" style="margin-top:4px"><button class="btn primary" data-action="grade-open" data-id="' + s.id + '">+ Note hinzufügen</button></div></div>';
+  } else h += '<form class="form-row" id="u-grade-form" data-id="' + s.id + '">' +
+    '<label class="field"><span>Halbjahr</span><select id="ug-hj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr</option></select></label>" +
+    '<label class="field"><span>Art</span><select id="ug-cat">' + cats.map(([k, v]) => '<option value="' + k + '"' + (k === selCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Note</span><select id="ug-n">' + UNOTES.map(l => '<option value="' + l + '"' + (l === "3" ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="ug-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + "></label>" +
+    '<label class="field"><span>Datum</span><input type="date" id="ug-date" value="' + today + '"></label>' +
+    '<label class="field"><span>Notiz</span><input type="text" id="ug-note" placeholder="Thema, optional"></label>' +
+    '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
+    '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
+  h += '<div class="hj-grid">';
+  for (let i = 0; i < 2; i++) {
+    const gs = s.grades.filter(g => g.hj === i).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    const nSa = gs.filter(g => g.cat === "sa").length, nK = gs.length - nSa;
+    h += '<div class="card hjblock"><div class="hjblock-head"><h3>' + uHjName(i) + '</h3><div class="actions"><span class="muted small">' + (gs.length ? (uW(s) > 0 ? nSa + " SA · " : "") + nK + " kleine" : "noch keine Noten") + "</span></div></div>";
+    h += '<div class="grades">' + (gs.length ? gs.map(g => {
+      const c = uCat(g), v = uVal(g);
+      return '<div class="grade">' + uChip(v, g.n, g.plan ? "plan" : "", fmt(v, 2)) + '<div class="t"><b>' + c.label + (c.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
+        (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
+        '<div class="actions"><button class="btn ghost sm danger" data-action="u-del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
+    }).join("") : '<div class="muted small">Trag oben deine erste Note für das ' + uHjName(i) + " ein.</div>") + "</div></div>";
+  }
+  h += "</div>";
+  // Zeugnisnoten
+  const ovSel = (h2) => '<select id="uov-' + s.id + "-" + h2 + '" data-action="u-override" data-id="' + s.id + '" data-h="' + h2 + '"><option value="">automatisch berechnen</option>' +
+    [1, 2, 3, 4, 5, 6].map(n => '<option value="' + n + '"' + (s.ov[h2] === n ? " selected" : "") + ">Note " + n + "</option>").join("") + "</select>";
+  h += '<div class="card"><div class="card-head"><h3>Zeugnisnoten</h3></div><div class="grid" style="gap:12px">' +
+    '<div><div class="hj-row"><b>Zwischenzeugnis</b>' + (zw ? uChip(zw.final) : '<span class="muted small">offen</span>') + '</div><div class="formula num">' + (zw ? uFormula(zw) : "Noch keine Noten im 1. Halbjahr.") + "</div></div>" +
+    '<div><div class="hj-row"><b>Jahreszeugnis</b>' + (j ? uChip(j.final) : '<span class="muted small">offen</span>') + '</div><div class="formula num">' + (j ? uFormula(j) : "Noch keine Noten.") + "</div></div>";
+  if (j && !j.manual && uW(s) > 0 && j.nSA < s.sa) {
+    const tg = [1, 2, 3, 4].map(t => uNeedText(s, j, t, true));
+    h += '<div class="need">Noch ' + (s.sa - j.nSA) + " von " + s.sa + " Schulaufgaben offen. Für die Jahresnote brauchst du in der nächsten Schulaufgabe: " + tg.join(" · ") + "</div>";
+  }
+  h += '<div class="form-row"><label class="field"><span>Zwischenzeugnis manuell</span>' + ovSel(0) + '</label><label class="field"><span>Jahreszeugnis manuell</span>' + ovSel(1) + "</label></div>" +
+    '<p class="muted small" style="margin:0">Die Zeugnisnote setzt die Klassenkonferenz fest. Sie kann aus pädagogischen Gründen vom rechnerischen Wert abweichen. Steht deine Note fest, kannst du sie hier eintragen.</p></div></div>';
+  return h + "</div>";
+}
+function uViewAdd() {
+  const have = new Set(U().subjects.map(s => s.name));
+  return '<section class="card"><div class="card-head"><h2>Fächer hinzufügen</h2><span class="muted small">Schulaufgaben und Kernfächer werden nach Jahrgangsstufe ' + U().jgst + " und Ausbildungsrichtung vorgeschlagen und sind anpassbar</span></div>" +
+    '<div class="tpl-grid">' + UTEMPLATES.map((t, i) => '<label class="check' + (have.has(t.name) ? " has" : "") + '"><input type="checkbox" id="utpl-' + i + '" data-utpl="' + i + '"' + (have.has(t.name) ? " disabled" : "") + "> " + esc(t.name) + "</label>").join("") + "</div>" +
+    '<div class="form-row" style="margin-top:14px"><label class="field"><span>Eigenes Fach (optional)</span><input type="text" id="u-custom-name" placeholder="z. B. Profilfach"></label>' +
+    '<label class="field"><span>Schulaufgaben im Schuljahr</span><input type="number" id="u-custom-sa" min="0" max="8" value="0"></label>' +
+    '<div class="actions"><button class="btn primary" data-action="u-add-subjects">Hinzufügen</button>' + (U().subjects.length ? '<button class="btn" data-action="toggle-add">Abbrechen</button>' : "") + "</div></div></section>";
+}
+function uViewManage() {
+  let h = "";
+  const u = U();
+  if (ui.showAdd || !u.subjects.length) h += uViewAdd();
+  if (!u.subjects.length) return h;
+  const list = uSorted();
+  const sel = list.find(s => s.id === ui.uOptSel) || list[0];
+  ui.uOptSel = sel.id;
+  const open = !!ui.listOpen;
+  h += '<section class="subj-layout"><div class="card subj-list' + (open ? "" : " collapsed") + '"><div class="card-head" style="margin:4px 6px 6px"><div><h2>Deine Fächer</h2><span class="muted small">Anlegen, einstellen, löschen</span></div><div class="actions">' +
+    '<button class="btn sm list-toggle" data-action="toggle-list">' + (open ? "Liste einklappen" : "Fach wechseln") + "</button>" +
+    '<button class="btn sm" data-action="toggle-add">' + (ui.showAdd ? "Schließen" : "+ Fach") + "</button></div></div>";
+  for (const s of list) h += '<button class="subj-item" data-action="u-opt-select" data-id="' + s.id + '" aria-current="' + (s.id === sel.id) + '"><span class="n">' + esc(s.name) + " " + uBadges(s, true) + "</span></button>";
+  return h + "</div>" + uViewSubjectSettings(sel) + "</section>";
+}
+const UWMODES = [["auto", "automatisch nach Zahl der Schulaufgaben"], ["1:1", "1 : 1"], ["2:1", "2 : 1"], ["klein", "nur kleine Leistungsnachweise"]];
+function uViewSubjectSettings(s) {
+  const key = "usubj:" + s.id, ed = editing(key);
+  let h = '<div class="card' + (ed ? " editing" : "") + '"><div class="card-head"><h3>Fach-Einstellungen</h3>' + editBar(key) + "</div>";
+  const vrTxt = s.vr == null ? "automatisch (" + (uVrFach(s) ? "ja" : "nein") + ")" : s.vr ? "ja" : "nein";
+  if (!ed) {
+    const kv = (k, v) => "<div><dt>" + k + "</dt><dd>" + v + "</dd></div>";
+    return h + '<dl class="kv">' + kv("Name", esc(s.name)) + kv("Kürzel", esc(s.short) || "–") +
+      kv("Schulaufgaben im Schuljahr", s.sa || "keine") + kv("Gewichtung", (s.wmode === "auto" ? "automatisch: " : "") + uWLabel(s)) +
+      kv("Kernfach", s.kern ? "ja" : "nein") + kv("Vorrückungsfach", vrTxt) + kv("Noten", s.grades.length) + "</dl></div>";
+  }
+  h += '<div class="grid" style="gap:14px"><div class="form-row">' +
+    '<label class="field"><span>Name</span><input type="text" id="us-name" data-ufield="name" data-id="' + s.id + '" value="' + esc(s.name) + '"></label>' +
+    '<label class="field"><span>Kürzel</span><input type="text" id="us-short" data-ufield="short" data-id="' + s.id + '" value="' + esc(s.short) + '"></label>' +
+    '<label class="field"><span>Schulaufgaben im Schuljahr</span><input type="number" min="0" max="8" id="us-sa" data-ufield="sa" data-id="' + s.id + '" value="' + s.sa + '"></label>' +
+    '<label class="field"><span>Gewichtung Schulaufgaben : kleine</span><select id="us-w" data-ufield="wmode" data-id="' + s.id + '">' + UWMODES.map(([v, l]) => '<option value="' + v + '"' + (s.wmode === v ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Vorrückungsfach</span><select id="us-vr" data-ufield="vr" data-id="' + s.id + '"><option value=""' + (s.vr == null ? " selected" : "") + ">automatisch</option><option value=\"1\"" + (s.vr === true ? " selected" : "") + '>ja</option><option value="0"' + (s.vr === false ? " selected" : "") + ">nein</option></select></label></div>" +
+    '<label class="check"><input type="checkbox" id="us-kern" data-ufield="kern" data-id="' + s.id + '"' + (s.kern ? " checked" : "") + "> Kernfach (wichtig für Notenausgleich und Vorrücken auf Probe)</label>" +
+    '<p class="muted small" style="margin:0">Automatisch heißt: bei mehr als 2 Schulaufgaben 2 : 1, bei 1 oder 2 Schulaufgaben 1 : 1, ohne Schulaufgaben nur kleine Leistungsnachweise (§ 28 GSO). Weicht deine Lehrkraft ab, stell es hier um.</p>' +
+    '<div class="actions">' + (ui.confirm === "udel-" + s.id
+      ? '<span class="small">Fach mit allen ' + s.grades.length + ' Noten löschen?</span><button class="btn danger solid sm" data-action="u-del-subject" data-id="' + s.id + '">Ja, löschen</button><button class="btn sm" data-action="cancel-confirm">Abbrechen</button>'
+      : '<button class="btn danger sm" data-action="u-ask-del" data-id="' + s.id + '">Fach löschen</button>') + "</div></div></div>";
+  return h;
+}
+function viewModeCard() {
+  const m = state.settings.mode === "ums" ? "ums" : "os";
+  return '<section class="card"><div class="card-head"><div><h2>Modus</h2><span class="muted small">Deine Daten aus beiden Modi bleiben erhalten, du kannst jederzeit wechseln</span></div></div>' +
+    '<div class="seg" role="radiogroup" aria-label="Modus">' +
+    '<label class="check"><input type="radio" name="o-mode" id="o-mode-os" data-opt="mode" value="os"' + (m === "os" ? " checked" : "") + "> <span><b>Oberstufe</b> <span class=\"muted small\">12/1 bis 13/2, Punkte 0 bis 15, Abitur</span></span></label>" +
+    '<label class="check"><input type="radio" name="o-mode" id="o-mode-ums" data-opt="mode" value="ums"' + (m === "ums" ? " checked" : "") + "> <span><b>Unter- und Mittelstufe</b> <span class=\"muted small\">Klasse 5 bis 11, Noten 1 bis 6</span></span></label></div></section>";
+}
+function uViewOptions() {
+  const u = U(), edB = editing("ubase");
+  let h = uViewManage();
+  h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Unter- und Mittelstufe</span></div>' + editBar("ubase") + "</div>" +
+    (edB
+      ? '<div class="form-row"><label class="field"><span>Jahrgangsstufe</span><select id="uo-jgst" data-uopt="jgst">' + [5, 6, 7, 8, 9, 10, 11].map(j => '<option value="' + j + '"' + (u.jgst === j ? " selected" : "") + ">" + j + "</option>").join("") + "</select></label>" +
+        '<label class="field"><span>Ausbildungsrichtung</span><select id="uo-richt" data-uopt="richt">' + Object.entries(URICHT).map(([k, l]) => '<option value="' + k + '"' + (u.richt === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
+        '<label class="field"><span>Rundung der Zeugnisnote</span><select id="uo-round" data-uopt="round">' + Object.entries(UROUND).map(([k, o]) => '<option value="' + k + '"' + (u.round === k ? " selected" : "") + ">" + o.label + "</option>").join("") + "</select></label></div>" +
+        '<p class="muted small" style="margin:10px 0 0">Die Ausbildungsrichtung bestimmt das zusätzliche Kernfach (NTG Chemie, WSG-W Wirtschaft und Recht, WSG-S Politik und Gesellschaft, MuG Musik). Sie wirkt auf neu angelegte Fächer; bestehende Fächer stellst du einzeln um. Die Rundung regelt die GSO nicht fest, frag im Zweifel deine Lehrkraft.</p>'
+      : '<dl class="kv"><div><dt>Jahrgangsstufe</dt><dd>' + u.jgst + "</dd></div><div><dt>Ausbildungsrichtung</dt><dd>" + URICHT[u.richt] + "</dd></div>" +
+        "<div><dt>Rundung</dt><dd>" + (UROUND[u.round] || UROUND["50"]).label + "</dd></div></dl>") + "</section>";
+  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
+    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="uo-cur" data-uopt="currentHj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr (bis Zwischenzeugnis)</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr (bis Jahreszeugnis)</option></select></label></div>" +
+    '<p class="muted small" style="margin:0">Bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></div>' + viewDataCard() + "</section>";
+  h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
+    "<li><b>Große Leistungsnachweise</b> sind nur die Schulaufgaben. <b>Kleine</b> sind schriftlich (Stegreifaufgaben, Kurzarbeiten, fachliche Leistungstests), mündlich (Abfragen, Unterrichtsbeiträge, Referate) und praktisch (§§ 21, 23 GSO). Kurzarbeiten zählen also als kleine Leistungsnachweise.</li>" +
+    "<li><b>Jahresfortgangsnote</b> (§ 28 GSO): Aus allen Schulaufgaben wird ein Durchschnitt gebildet, aus allen kleinen Leistungsnachweisen ein zweiter. In Fächern mit 2 Schulaufgaben stehen beide grundsätzlich 1 : 1, bei mehr als 2 Schulaufgaben 2 : 1. In Fächern ohne Schulaufgaben zählen nur die kleinen Leistungsnachweise. Wie die kleinen untereinander gewichtet werden, legt die Lehrkraft fest; Standard ist hier 1, du kannst bei jeder Note ein anderes Gewicht eintragen.</li>" +
+    "<li><b>Beispiel</b>: Schulaufgaben 4, 3, 3 ergeben 3,33, kleine 2, 2, 1, 3, 3 ergeben 2,20. Bei 2 : 1 gilt (2 × 3,33 + 2,20) ÷ 3 = 2,95, also Note 3.</li>" +
+    "<li><b>Zwischenzeugnis</b>: dieselbe Rechnung mit den Noten des 1. Halbjahres. <b>Jahreszeugnis</b>: alle Noten des Schuljahres. Manche Schulen ersetzen das Zwischenzeugnis durch zwei Notenberichte (§ 40 GSO).</li>" +
+    "<li><b>Rundung</b>: Die GSO legt für die Klassen 5 bis 11 keine feste Rundungsregel fest, die Note setzt die Klassenkonferenz fest. Voreingestellt ist: bis x,50 die bessere Note. Das kannst du oben umstellen.</li>" +
+    "<li><b>Vorrücken</b> (§ 30 GSO): Ausgeschlossen ist, wer in einem Vorrückungsfach die Note 6 oder in zwei Vorrückungsfächern die Note 5 hat. Vorrückungsfächer sind alle Pflicht- und Wahlpflichtfächer außer Sport, Musik erst ab Jahrgangsstufe 7 (§ 16 GSO).</li>" +
+    "<li><b>Notenausgleich</b> (§ 32 GSO, nur Jgst. 10 und 11): möglich, wenn kein weiteres Fach 5 oder 6 hat und dafür Note 1 in einem oder Note 2 in zwei Vorrückungsfächern steht (Kernfächer nur durch Kernfächer) oder mindestens drei Kernfächer 3 oder besser sind. Außerdem muss erwartet werden, dass das Ziel der nächsten Stufe erreicht wird; das entscheidet die Lehrerkonferenz.</li>" +
+    "<li><b>Vorrücken auf Probe</b> (§ 31) und <b>Nachprüfung</b> (§ 33, Jgst. 6 bis 9) sind weitere Wege, über die die Schule entscheidet.</li>" +
+    "<li><b>Kernfächer</b> (§ 16 Abs. 2 GSO): Deutsch, zwei Fremdsprachen, Mathematik, Physik und je nach Ausbildungsrichtung ein weiteres Fach.</li>" +
+    "<li><b>Mindestzahl Schulaufgaben</b> (§ 22 GSO): Deutsch 3, Mathematik 4 (Jgst. 5 bis 7) bzw. 3, Fremdsprachen 3 bzw. 4 bei mindestens 4 Wochenstunden, übrige Kernfächer 2. Die Vorschläge beim Anlegen richten sich danach. Wie viele es an deiner Schule tatsächlich sind, steht im Leistungserhebungsplan deiner Schule.</li></ul>" +
+    '<p class="muted small">Ohne Gewähr. Verbindlich sind die Gymnasialschulordnung und deine Schule. Quellen: <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-22" target="_blank" rel="noopener">§ 22 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-23" target="_blank" rel="noopener">§ 23 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-28" target="_blank" rel="noopener">§ 28 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-30" target="_blank" rel="noopener">§ 30 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-31" target="_blank" rel="noopener">§ 31 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-32" target="_blank" rel="noopener">§ 32 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-33" target="_blank" rel="noopener">§ 33 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-16" target="_blank" rel="noopener">§ 16 GSO</a>.</p></section>';
+  return h;
+}
+
 /* ================= Aktionen ================= */
 function findS(id) { return state.subjects.find(s => s.id === id); }
 
@@ -1187,11 +1608,14 @@ const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const ICON_SAVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>';
 const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>';
 const CFG_KEYS = ["name", "short", "type", "lf", "group", "pOv", "maxOv", "hj", "vkPartner"];
+const UCFG_KEYS = ["name", "short", "sa", "wmode", "kern", "vr"];
 function snapConfig() {
   return JSON.stringify({
     s: { subst: state.settings.subst, kumuLf: state.settings.kumuLf, labels: state.settings.labels },
     e: state.exams.map(e => ({ subjectId: e.subjectId, art: e.art })),
-    sub: state.subjects.map(s => { const o = { id: s.id }; CFG_KEYS.forEach(k => { o[k] = s[k]; }); return o; })
+    sub: state.subjects.map(s => { const o = { id: s.id }; CFG_KEYS.forEach(k => { o[k] = s[k]; }); return o; }),
+    u: { jgst: state.ums.jgst, richt: state.ums.richt, tend: state.ums.tend, round: state.ums.round },
+    usub: state.ums.subjects.map(s => { const o = { id: s.id }; UCFG_KEYS.forEach(k => { o[k] = s[k]; }); return o; })
   });
 }
 function restoreConfig(str) {
@@ -1199,6 +1623,8 @@ function restoreConfig(str) {
   Object.assign(state.settings, c.s);
   c.e.forEach((x, i) => Object.assign(state.exams[i], x));
   c.sub.forEach(o => { const s = findS(o.id); if (s) Object.assign(s, o); });
+  if (c.u) Object.assign(state.ums, c.u);
+  (c.usub || []).forEach(o => { const s = uFind(o.id); if (s) Object.assign(s, o); });
 }
 // Abiturfächer: Speichern nur, wenn keine Regel der Fächerwahl verletzt ist (Text der ersten verletzten Regel, sonst null)
 function saveBlocker(key) {
@@ -1254,7 +1680,25 @@ document.addEventListener("click", e => {
     case "ask-reset": ui.confirm = "reset"; render(); return;
     case "cancel-confirm": ui.confirm = null; render(); return;
     case "del-subject": ui.edit = null; state.subjects = state.subjects.filter(x => x.id !== s.id); state.exams.forEach(x => { if (x.subjectId === s.id) x.subjectId = null; }); ui.confirm = null; ui.selected = null; commit(); toast("Fach gelöscht"); return;
-    case "reset": { const keep = state.settings; state = defaultState(); state.settings = keep; ui.confirm = null; commit(); toast("Alle Daten gelöscht"); return; }
+    case "reset": {
+      if (isUms()) { state.ums.subjects = []; ui.confirm = null; ui.uSel = null; commit(); toast("Unter- und Mittelstufe gelöscht"); return; }
+      const keep = state.settings, keepU = state.ums; state = defaultState(); state.settings = keep; state.ums = keepU; ui.confirm = null; commit(); toast("Alle Daten gelöscht"); return;
+    }
+    case "u-select": ui.uSel = el.dataset.id; ui.listOpen = false; if (currentTab() !== "faecher") { location.hash = "faecher"; return; } render(); return;
+    case "u-opt-select": if (ui.edit) { toast("Speichere zuerst die laufende Bearbeitung."); return; } ui.uOptSel = el.dataset.id; ui.listOpen = false; ui.confirm = null; render(); return;
+    case "u-add-subjects": {
+      e.preventDefault();
+      const picked = [...document.querySelectorAll("[data-utpl]:checked")].map(x => uNewFrom(UTEMPLATES[+x.dataset.utpl]));
+      const custom = document.getElementById("u-custom-name").value.trim();
+      if (custom) picked.push(uFixSubject({ id: uid(), name: custom, short: custom.slice(0, 3), sa: Math.max(0, Math.min(8, parseInt(document.getElementById("u-custom-sa").value, 10) || 0)) }));
+      if (!picked.length) { toast("Wähle mindestens ein Fach aus."); return; }
+      state.ums.subjects.push(...picked); ui.showAdd = false; ui.uSel = picked[0].id; ui.uOptSel = picked[0].id;
+      commit(); toast(picked.length === 1 ? "Fach angelegt" : picked.length + " Fächer angelegt"); return;
+    }
+    case "u-del-grade": { const us = uFind(el.dataset.id); if (!us) return; us.grades = us.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return; }
+    case "u-ask-del": ui.confirm = "udel-" + el.dataset.id; render(); return;
+    case "u-del-subject": ui.edit = null; state.ums.subjects = state.ums.subjects.filter(x => x.id !== el.dataset.id); ui.confirm = null; ui.uSel = null; ui.uOptSel = null; commit(); toast("Fach gelöscht"); return;
+
     case "edit-start":
       if (!ui.edit) { const k = el.dataset.key; ui.edit = { key: k, backup: k === "admin" ? JSON.stringify(ui.adminVault) : snapConfig() }; ui.confirm = null; ui.adminNew = null; ui.adminConfirmDel = null; }
       render(); return;
@@ -1342,6 +1786,18 @@ document.addEventListener("click", e => {
   }
 });
 document.addEventListener("submit", e => {
+  if (e.target.id !== "u-grade-form") return;
+  e.preventDefault();
+  const s = uFind(e.target.dataset.id);
+  if (!s) return;
+  const cat = document.getElementById("ug-cat").value, w = parseFloat(document.getElementById("ug-w").value);
+  s.grades.push({ id: uid(), hj: +document.getElementById("ug-hj").value, cat, n: document.getElementById("ug-n").value,
+    weight: UCATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("ug-date").value || "",
+    note: document.getElementById("ug-note").value.trim(), plan: false });
+  ui.uLastCat = cat; ui.addGrade = null;
+  commit(); toast("Note eingetragen");
+});
+document.addEventListener("submit", e => {
   if (e.target.id !== "grade-form") return;
   e.preventDefault();
   const s = findS(e.target.dataset.id);
@@ -1358,6 +1814,30 @@ document.addEventListener("change", e => {
   if (el.id === "g-cat") { const w = document.getElementById("g-w"); if (w) { const off = (CATS[el.value] || CATS.sonstige).group !== "klein"; w.disabled = off; w.title = off ? "Zählt nur bei kleinen Leistungsnachweisen" : ""; } return; }
   if (el.id === "bk-data-file") { readFileInput(el, (txt, name) => { try { ui.bkData = Object.assign(parseDataBackup(txt), { file: name, confirm: null }); } catch (err) { toast(err.message); } render(); }); return; }
   if (el.id === "bk-codes-file") { readFileInput(el, (txt, name) => { parseCodesBackup(txt).then(x => { ui.bkCodes = Object.assign(x, { file: name, confirm: false }); }, err => toast(err.message)).finally(render); }); return; }
+  if (el.id === "ug-cat") { const w = document.getElementById("ug-w"); if (w) { const off = (UCATS[el.value] || UCATS.ub).group !== "klein"; w.disabled = off; w.title = off ? "Zählt nur bei kleinen Leistungsnachweisen" : ""; } return; }
+  if (el.dataset.action === "u-override") { const s = uFind(el.dataset.id); if (s) { s.ov[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); } return; }
+  if (el.dataset.opt === "mode") {
+    if (ui.edit) { if (ui.edit.key !== "admin") restoreConfig(ui.edit.backup); ui.edit = null; }
+    state.settings.mode = el.value === "ums" ? "ums" : "os"; ui.showAdd = false; ui.listOpen = false; ui.confirm = null; ui.addGrade = null;
+    commit(); toast(isUms() ? "Modus: Unter- und Mittelstufe" : "Modus: Oberstufe"); return;
+  }
+  if (el.dataset.uopt) {
+    const k = el.dataset.uopt;
+    state.ums[k] = k === "jgst" || k === "currentHj" ? +el.value : el.value;
+    if (k === "currentHj") commit(); else stage(el);
+    return;
+  }
+  if (el.dataset.ufield) {
+    const s = uFind(el.dataset.id), f = el.dataset.ufield;
+    if (!s) return;
+    if (f === "kern") s.kern = el.checked;
+    else if (f === "sa") s.sa = Math.max(0, Math.min(8, parseInt(el.value, 10) || 0));
+    else if (f === "vr") s.vr = el.value === "" ? null : el.value === "1";
+    else if (f === "name") s.name = el.value.trim() || s.name;
+    else s[f] = el.value;
+    stage(el);
+    return;
+  }
   if (el.dataset.action === "admin-name") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) { en.name = el.value.trim().slice(0, 40); en.nameDirty = true; } return; }
   if (el.dataset.action === "admin-note") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) en.note = el.value.trim(); return; }
   if (el.dataset.action === "admin-block") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en && en.nr !== ADMIN_NR) en.blocked = el.checked; render(); return; }

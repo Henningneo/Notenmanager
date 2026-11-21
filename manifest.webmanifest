@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Notenmanager Oberstufe",
+  "name": "Notenmanager",
   "short_name": "Notenmanager",
-  "description": "Noten, Halbjahresleistungen und Abitur in der bayerischen Oberstufe (G9) im Blick behalten.",
+  "description": "Noten am bayerischen Gymnasium im Blick behalten: Unter- und Mittelstufe (Klasse 5 bis 11) und Oberstufe mit Abitur.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

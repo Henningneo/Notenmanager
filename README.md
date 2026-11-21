@@ -1,6 +1,9 @@
-# Notenmanager Oberstufe
+# Notenmanager
 
-Notenmanager für die bayerische Oberstufe (G9, Qualifikationsphase), als einzelne Webseite (`index.html`) über GitHub Pages.
+Notenmanager für das bayerische Gymnasium, als einzelne Webseite (`index.html`) über GitHub Pages. Unter Optionen umschaltbar:
+
+- Oberstufe (G9, Qualifikationsphase, Punkte 0 bis 15, Abitur)
+- Unter- und Mittelstufe (Klasse 5 bis 11, Noten 1 bis 6, Rechnung nach § 28 GSO, Vorrücken nach §§ 30 bis 33 GSO)
 
 - Anmeldung mit 12-stelligen Codes, die Noten werden im Browser mit dem Code verschlüsselt (AES-GCM, Schlüssel per PBKDF2).
 - Speicherung: verschlüsselt im Browser und in Firebase Firestore (Sync über Geräte).
@@ -16,7 +19,7 @@ Anfragen an Firestore und Firebase Auth laufen nicht über den Service Worker. B
 
 ## Beta-Version (`beta/`)
 
-Unter https://henningneo.github.io/Notenmanager/beta/ läuft eine Testversion mit zusätzlichem Modus für die Unter- und Mittelstufe (Klasse 5 bis 11, Noten 1 bis 6), umschaltbar unter Optionen.
+Unter https://henningneo.github.io/Notenmanager/beta/ läuft eine Testversion für größere Umbauten. Der Modus Unter- und Mittelstufe ist seit 21.11.2026 in der normalen Version.
 
 - Anmeldung mit denselben Codes, aber eigene Testdaten: eigenes Firestore-Dokument (`nm/` + Prüfsumme von `nm-doc-beta:` + Code) und eigene Schlüssel im Browser-Speicher (`notenmanager-beta-…`). Die normale Version wird nicht verändert.
 - Eigener Service Worker (`beta/sw.js`, Cache `nmbeta-v…`). Der Service Worker der normalen Version lässt `/beta/` in Ruhe.
