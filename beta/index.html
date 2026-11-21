@@ -280,13 +280,13 @@ const CATS = {
   sa:        { label: "Klausur/Schulaufgabe", group: "gross" },
   abfrage:   { label: "Abfrage", group: "klein" },
   muendlich: { label: "Unterrichtsbeitrag", group: "klein" },
+  referat:   { label: "Referat", group: "klein" },
   ex:        { label: "Ex", group: "klein" },
   test:      { label: "Test", group: "klein" },
   praktisch: { label: "Praxis / Projekt", group: "praktisch" },
   // ältere Arten: nicht mehr auswählbar, bereits eingetragene Noten zählen weiter
   klausur:   { label: "Klausur/Schulaufgabe", group: "gross", old: true },
   kurzarbeit:{ label: "Kurzarbeit", group: "klein", old: true },
-  referat:   { label: "Referat", group: "klein", old: true },
   sonstige:  { label: "Sonstiger kleiner LN", group: "klein", old: true }
 };
 const NOTE = ["6","5-","5","5+","4-","4","4+","3-","3","3+","2-","2","2+","1-","1","1+"];
@@ -1206,21 +1206,17 @@ function viewDataCard() {
 // Rechtsgrundlage: §§ 22, 23, 28, 30–33 GSO (Fassung ab 01.08.2026)
 const UCATS = {
   sa:      { label: "Schulaufgabe", group: "gross" },
-  ex:      { label: "Stegreifaufgabe (Ex)", group: "klein", art: "s" },
-  ka:      { label: "Kurzarbeit", group: "klein", art: "s" },
-  test:    { label: "Test / Leistungstest", group: "klein", art: "s" },
-  abfrage: { label: "Abfrage (Rechenschaftsablage)", group: "klein", art: "m" },
+  ex:      { label: "Ex", group: "klein", art: "s" },
+  test:    { label: "Test", group: "klein", art: "s" },
+  abfrage: { label: "Abfrage", group: "klein", art: "m" },
   ub:      { label: "Unterrichtsbeitrag", group: "klein", art: "m" },
-  referat: { label: "Referat / Präsentation", group: "klein", art: "m" },
-  praxis:  { label: "Praktische Leistung / Projekt", group: "klein", art: "p" }
+  referat: { label: "Referat", group: "klein", art: "m" },
+  // ältere Arten: nicht mehr auswählbar, bereits eingetragene Noten zählen weiter
+  ka:      { label: "Kurzarbeit", group: "klein", art: "s", old: true },
+  praxis:  { label: "Praktische Leistung / Projekt", group: "klein", art: "p", old: true }
 };
-// Notenstufen mit Tendenz und Zwischennoten wie 2-3 (= 2,5)
-const UNOTES = ["1", "1-", "1-2", "2+", "2", "2-", "2-3", "3+", "3", "3-", "3-4", "4+", "4", "4-", "4-5", "5+", "5", "5-", "5-6", "6"];
-const UTEND = {
-  t: { v: 1 / 3, label: "als Drittelnote (2+ = 1,67 · 2- = 2,33)" },
-  q: { v: 0.25, label: "als Viertelnote (2+ = 1,75 · 2- = 2,25)" },
-  o: { v: 0, label: "gar nicht (2+ und 2- zählen als 2)" }
-};
+// Eingabe nur ganze Noten 1 bis 6 (ältere Einträge mit Tendenz zählen als Drittelnote weiter)
+const UNOTES = ["1", "2", "3", "4", "5", "6"];
 const UROUND = {
   "50": { v: 0.5, label: "bis x,50 die bessere Note (2,50 → 2)" },
   "55": { v: 0.55, label: "bis x,55 die bessere Note (2,55 → 2)" },
@@ -1273,7 +1269,7 @@ function uMigrate(u) {
 function isUms() { return state.settings.mode === "ums"; }
 function U() { return state.ums; }
 function uFind(id) { return U().subjects.find(s => s.id === id); }
-function uTend() { return (UTEND[U().tend] || UTEND.t).v; }
+function uTend() { return 1 / 3; }
 function noteVal(lbl, t) {
   const m = /^([1-6])([+-])?$/.exec(lbl);
   if (m) { const b = +m[1]; return Math.max(1, Math.min(6, m[2] === "+" ? b - t : m[2] === "-" ? b + t : b)); }
@@ -1487,14 +1483,14 @@ function uViewSubject(s) {
     '<span class="muted small"> Gewichtung Schulaufgaben : kleine = ' + uWLabel(s) + (s.sa ? " · " + s.sa + " Schulaufgaben im Schuljahr" : " · Fach ohne Schulaufgaben") + "</span></div></div>" +
     '<div class="num" style="text-align:right"><span class="label">Jahresnote bisher</span><div style="font-family:var(--font-display);font-weight:700;font-size:1.6rem">' + (j ? j.final : "–") + "</div>" +
     (j && !j.manual ? '<span class="muted small">' + fmt(j.raw, 2) + "</span>" : "") + "</div></div>";
-  const cats = Object.entries(UCATS).filter(([k]) => uW(s) > 0 || k !== "sa");
+  const cats = Object.entries(UCATS).filter(([k, v]) => !v.old && (uW(s) > 0 || k !== "sa"));
   const selCat = cats.some(([k]) => k === ui.uLastCat) ? ui.uLastCat : (uW(s) > 0 ? "sa" : "ex"), wOff = UCATS[selCat].group !== "klein" || false;
   if (ui.addGrade !== s.id) {
     h += '<div class="actions" style="margin-top:4px"><button class="btn primary" data-action="grade-open" data-id="' + s.id + '">+ Note hinzufügen</button></div></div>';
   } else h += '<form class="form-row" id="u-grade-form" data-id="' + s.id + '">' +
     '<label class="field"><span>Halbjahr</span><select id="ug-hj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr</option></select></label>" +
     '<label class="field"><span>Art</span><select id="ug-cat">' + cats.map(([k, v]) => '<option value="' + k + '"' + (k === selCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
-    '<label class="field"><span>Note</span><select id="ug-n">' + UNOTES.map(l => '<option value="' + l + '"' + (l === "3" ? " selected" : "") + ">" + l + (/[+-]$|-\d/.test(l) ? " (" + fmt(noteVal(l, uTend()), 2) + ")" : "") + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Note</span><select id="ug-n">' + UNOTES.map(l => '<option value="' + l + '"' + (l === "3" ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="ug-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + "></label>" +
     '<label class="field"><span>Datum</span><input type="date" id="ug-date" value="' + today + '"></label>' +
     '<label class="field"><span>Notiz</span><input type="text" id="ug-note" placeholder="Thema, optional"></label>' +
@@ -1588,22 +1584,19 @@ function uViewOptions() {
     (edB
       ? '<div class="form-row"><label class="field"><span>Jahrgangsstufe</span><select id="uo-jgst" data-uopt="jgst">' + [5, 6, 7, 8, 9, 10, 11].map(j => '<option value="' + j + '"' + (u.jgst === j ? " selected" : "") + ">" + j + "</option>").join("") + "</select></label>" +
         '<label class="field"><span>Ausbildungsrichtung</span><select id="uo-richt" data-uopt="richt">' + Object.entries(URICHT).map(([k, l]) => '<option value="' + k + '"' + (u.richt === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
-        '<label class="field"><span>Tendenz (+/-) zählt</span><select id="uo-tend" data-uopt="tend">' + Object.entries(UTEND).map(([k, o]) => '<option value="' + k + '"' + (u.tend === k ? " selected" : "") + ">" + o.label + "</option>").join("") + "</select></label>" +
         '<label class="field"><span>Rundung der Zeugnisnote</span><select id="uo-round" data-uopt="round">' + Object.entries(UROUND).map(([k, o]) => '<option value="' + k + '"' + (u.round === k ? " selected" : "") + ">" + o.label + "</option>").join("") + "</select></label></div>" +
-        '<p class="muted small" style="margin:10px 0 0">Die Ausbildungsrichtung bestimmt das zusätzliche Kernfach (NTG Chemie, WSG-W Wirtschaft und Recht, WSG-S Politik und Gesellschaft, MuG Musik). Sie wirkt auf neu angelegte Fächer; bestehende Fächer stellst du einzeln um. Tendenz und Rundung regelt die GSO nicht fest, frag im Zweifel deine Lehrkraft.</p>'
+        '<p class="muted small" style="margin:10px 0 0">Die Ausbildungsrichtung bestimmt das zusätzliche Kernfach (NTG Chemie, WSG-W Wirtschaft und Recht, WSG-S Politik und Gesellschaft, MuG Musik). Sie wirkt auf neu angelegte Fächer; bestehende Fächer stellst du einzeln um. Die Rundung regelt die GSO nicht fest, frag im Zweifel deine Lehrkraft.</p>'
       : '<dl class="kv"><div><dt>Jahrgangsstufe</dt><dd>' + u.jgst + "</dd></div><div><dt>Ausbildungsrichtung</dt><dd>" + URICHT[u.richt] + "</dd></div>" +
-        "<div><dt>Tendenz (+/-) zählt</dt><dd>" + (UTEND[u.tend] || UTEND.t).label + "</dd></div><div><dt>Rundung</dt><dd>" + (UROUND[u.round] || UROUND["50"]).label + "</dd></div></dl>") + "</section>";
+        "<div><dt>Rundung</dt><dd>" + (UROUND[u.round] || UROUND["50"]).label + "</dd></div></dl>") + "</section>";
   h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
     '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="uo-cur" data-uopt="currentHj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr (bis Zwischenzeugnis)</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr (bis Jahreszeugnis)</option></select></label></div>" +
     '<p class="muted small" style="margin:0">Bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></div>' + viewDataCard() + "</section>";
-  h += '<section class="card"><div class="card-head"><h2>Notenstufen</h2><span class="muted small">Zahlenwert mit der eingestellten Tendenz</span></div><div class="ptable">' +
-    UNOTES.map(l => '<div class="num"><b>' + esc(l) + "</b>" + fmt(noteVal(l, uTend()), 2) + "</div>").join("") + "</div></section>";
   h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
     "<li><b>Große Leistungsnachweise</b> sind nur die Schulaufgaben. <b>Kleine</b> sind schriftlich (Stegreifaufgaben, Kurzarbeiten, fachliche Leistungstests), mündlich (Abfragen, Unterrichtsbeiträge, Referate) und praktisch (§§ 21, 23 GSO). Kurzarbeiten zählen also als kleine Leistungsnachweise.</li>" +
     "<li><b>Jahresfortgangsnote</b> (§ 28 GSO): Aus allen Schulaufgaben wird ein Durchschnitt gebildet, aus allen kleinen Leistungsnachweisen ein zweiter. In Fächern mit 2 Schulaufgaben stehen beide grundsätzlich 1 : 1, bei mehr als 2 Schulaufgaben 2 : 1. In Fächern ohne Schulaufgaben zählen nur die kleinen Leistungsnachweise. Wie die kleinen untereinander gewichtet werden, legt die Lehrkraft fest; Standard ist hier 1, du kannst bei jeder Note ein anderes Gewicht eintragen.</li>" +
     "<li><b>Beispiel</b>: Schulaufgaben 4, 3, 3 ergeben 3,33, kleine 2, 2, 1, 3, 3 ergeben 2,20. Bei 2 : 1 gilt (2 × 3,33 + 2,20) ÷ 3 = 2,95, also Note 3.</li>" +
     "<li><b>Zwischenzeugnis</b>: dieselbe Rechnung mit den Noten des 1. Halbjahres. <b>Jahreszeugnis</b>: alle Noten des Schuljahres. Manche Schulen ersetzen das Zwischenzeugnis durch zwei Notenberichte (§ 40 GSO).</li>" +
-    "<li><b>Rundung und Tendenz</b>: Die GSO legt für die Klassen 5 bis 11 keine feste Rundungsregel fest, die Note setzt die Klassenkonferenz fest. Voreingestellt ist: bis x,50 die bessere Note, Tendenzen als Drittelnoten. Beides kannst du oben umstellen.</li>" +
+    "<li><b>Rundung</b>: Die GSO legt für die Klassen 5 bis 11 keine feste Rundungsregel fest, die Note setzt die Klassenkonferenz fest. Voreingestellt ist: bis x,50 die bessere Note. Das kannst du oben umstellen.</li>" +
     "<li><b>Vorrücken</b> (§ 30 GSO): Ausgeschlossen ist, wer in einem Vorrückungsfach die Note 6 oder in zwei Vorrückungsfächern die Note 5 hat. Vorrückungsfächer sind alle Pflicht- und Wahlpflichtfächer außer Sport, Musik erst ab Jahrgangsstufe 7 (§ 16 GSO).</li>" +
     "<li><b>Notenausgleich</b> (§ 32 GSO, nur Jgst. 10 und 11): möglich, wenn kein weiteres Fach 5 oder 6 hat und dafür Note 1 in einem oder Note 2 in zwei Vorrückungsfächern steht (Kernfächer nur durch Kernfächer) oder mindestens drei Kernfächer 3 oder besser sind. Außerdem muss erwartet werden, dass das Ziel der nächsten Stufe erreicht wird; das entscheidet die Lehrerkonferenz.</li>" +
     "<li><b>Vorrücken auf Probe</b> (§ 31) und <b>Nachprüfung</b> (§ 33, Jgst. 6 bis 9) sind weitere Wege, über die die Schule entscheidet.</li>" +
@@ -1763,6 +1756,37 @@ document.addEventListener("click", e => {
     case "grade-close": ui.addGrade = null; render(); return;
     case "forecast-start": startForecast(); return;
     case "forecast-end": endForecast(); return;
+    case "bk-scroll": { const c = document.getElementById("backups"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    case "bk-data-export": {
+      if (ui.bkBusy || !ui.adminVault) return;
+      ui.bkBusy = "data-export"; render();
+      exportDataBackup().then(n => toast("Daten-Backup mit " + n + (n === 1 ? " Profil" : " Profilen") + " heruntergeladen"), err => toast(err.message)).finally(() => { ui.bkBusy = null; render(); });
+      return;
+    }
+    case "bk-codes-export": {
+      if (ui.bkBusy || !ui.adminVault || editing("admin")) return;
+      try { toast("Codes-Backup mit " + exportCodesBackup() + " Codes heruntergeladen"); } catch (err) { toast("Download nicht möglich."); }
+      render(); return;
+    }
+    case "bk-data-close": ui.bkData = null; render(); return;
+    case "bk-codes-close": ui.bkCodes = null; render(); return;
+    case "bk-data-ask": if (ui.bkData) ui.bkData.confirm = el.dataset.id; render(); return;
+    case "bk-data-cancel": if (ui.bkData) ui.bkData.confirm = null; render(); return;
+    case "bk-codes-ask": if (ui.bkCodes) ui.bkCodes.confirm = true; render(); return;
+    case "bk-codes-cancel": if (ui.bkCodes) ui.bkCodes.confirm = false; render(); return;
+    case "bk-data-restore": {
+      const bd = ui.bkData; if (!bd || ui.bkBusy) return;
+      const list = el.dataset.id === "all" ? bd.profiles : bd.profiles.filter(p => p.docId === el.dataset.id);
+      ui.bkBusy = "data-restore"; render();
+      restoreProfiles(list).then(n => { bd.confirm = null; toast(n === 1 ? "Profil " + list[0].nr + " wiederhergestellt" : n + " Profile wiederhergestellt"); }, err => toast(err.message)).finally(() => { ui.bkBusy = null; render(); });
+      return;
+    }
+    case "bk-codes-restore": {
+      const bc = ui.bkCodes; if (!bc || ui.bkBusy) return;
+      ui.bkBusy = "codes-restore"; render();
+      restoreCodes(bc.entries).then(() => { ui.bkCodes = null; toast("Codeliste aus dem Backup wiederhergestellt"); }, err => toast(err.message)).finally(() => { ui.bkBusy = null; render(); });
+      return;
+    }
     case "export": doExport(); return;
     case "copy": doCopy(); return;
     case "import": doImport(); return;
@@ -1795,6 +1819,8 @@ document.addEventListener("submit", e => {
 document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "g-cat") { const w = document.getElementById("g-w"); if (w) { const off = (CATS[el.value] || CATS.sonstige).group !== "klein"; w.disabled = off; w.title = off ? "Zählt nur bei kleinen Leistungsnachweisen" : ""; } return; }
+  if (el.id === "bk-data-file") { readFileInput(el, (txt, name) => { try { ui.bkData = Object.assign(parseDataBackup(txt), { file: name, confirm: null }); } catch (err) { toast(err.message); } render(); }); return; }
+  if (el.id === "bk-codes-file") { readFileInput(el, (txt, name) => { parseCodesBackup(txt).then(x => { ui.bkCodes = Object.assign(x, { file: name, confirm: false }); }, err => toast(err.message)).finally(render); }); return; }
   if (el.id === "ug-cat") { const w = document.getElementById("ug-w"); if (w) { const off = (UCATS[el.value] || UCATS.ub).group !== "klein"; w.disabled = off; w.title = off ? "Zählt nur bei kleinen Leistungsnachweisen" : ""; } return; }
   if (el.dataset.action === "u-override") { const s = uFind(el.dataset.id); if (s) { s.ov[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); } return; }
   if (el.dataset.opt === "mode") {
@@ -1981,7 +2007,7 @@ async function loadAdminVault() {
       entries = [];
       for (let i = 0; i < 20; i++) entries.push({ nr: i + 1, code: s.slice(i * 12, i * 12 + 12), name: "", note: i === 0 ? "Admin" : "", created: null, blocked: false });
     }
-    for (const e of entries) { e.h = await sha256hex("nm-code:" + e.code); e.blocked = codeList.blocked.includes(e.h); if (e.name == null) e.name = ""; }
+    for (const e of entries) { e.h = await sha256hex("nm-code:" + e.code); e.docId = await profileDocId(e.code); e.blocked = codeList.blocked.includes(e.h); if (e.name == null) e.name = ""; }
     entries = entries.filter(e => !codeList.deleted.includes(e.h));
   } catch (e) { entries = null; ui.adminError = "Die Codeliste konnte nicht entschlüsselt werden."; }
   if (session !== my) return;
@@ -1994,8 +2020,7 @@ async function loadAdminVault() {
   if (!d || !entries) return;
   await Promise.all(entries.map(async e => {
     try {
-      const id = (await sha256hex("nm-doc:" + e.code)).slice(0, 40);
-      const s = await withTimeout(d.doc("nm/" + id).get(), 8000);
+      const s = await withTimeout(d.doc("nm/" + e.docId).get(), 8000);
       if (s && s.exists) ui.adminSeen[e.nr] = s.data().updatedAt || 0;
     } catch (x) {}
   }));
@@ -2040,10 +2065,165 @@ async function deleteCode(nr) {
 }
 async function createCode(name, note) {
   const code = randomCodeStr();
-  const entry = { nr: Math.max(20, ...ui.adminVault.map(e => e.nr)) + 1, code, name, nameDirty: true, note, created: Date.now(), blocked: false, h: await sha256hex("nm-code:" + code) };
+  const entry = { nr: Math.max(20, ...ui.adminVault.map(e => e.nr)) + 1, code, name, nameDirty: true, note, created: Date.now(), blocked: false, h: await sha256hex("nm-code:" + code), docId: await profileDocId(code) };
   ui.adminVault.push(entry);
   try { await saveCodeList(); ui.adminNew = entry.nr; return entry; }
   catch (err) { ui.adminVault.pop(); throw err; }
+}
+/* ================= Admin: Backups (Daten und Codes getrennt) ================= */
+const LS_BK = "notenmanager-last-backup-v1";
+function lastBackups() { try { return JSON.parse(readLS(LS_BK) || "{}") || {}; } catch (e) { return {}; } }
+function markBackup(kind) { const b = lastBackups(); b[kind] = Date.now(); writeLS(LS_BK, JSON.stringify(b)); }
+function agoText(t) {
+  if (!t) return "noch nie";
+  const d = Math.floor((Date.now() - t) / 86400000);
+  return d <= 0 ? "heute" : d === 1 ? "vor 1 Tag" : "vor " + d + " Tagen";
+}
+function fmtStamp(t) { return t ? new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "–"; }
+function fileStamp() { const d = new Date(), p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "_" + p(d.getHours()) + "-" + p(d.getMinutes()); }
+function downloadFile(name, text) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+async function profileDocId(code) { return (await sha256hex("nm-doc:" + code)).slice(0, 40); }
+// Daten-Backup: alle Profile genau so, wie sie verschlüsselt in der Datenbank liegen
+async function exportDataBackup() {
+  const d = await getDb();
+  if (!d) throw new Error("Keine Verbindung zur Datenbank. Versuch es später nochmal.");
+  const profiles = [], failed = [];
+  await Promise.all(ui.adminVault.map(async e => {
+    const id = await profileDocId(e.code);
+    try {
+      const s = await withTimeout(d.doc("nm/" + id).get(), 10000);
+      if (!s || (s.metadata && s.metadata.fromCache)) { failed.push(e.nr); return; }
+      const x = s.exists ? s.data() : null;
+      if (x && typeof x.iv === "string" && typeof x.ct === "string") profiles.push({ nr: e.nr, docId: id, v: x.v || 1, updatedAt: x.updatedAt || 0, iv: x.iv, ct: x.ct });
+    } catch (err) { failed.push(e.nr); }
+  }));
+  if (failed.length) throw new Error("Profil " + failed.sort((a, b) => a - b).join(", ") + " konnte nicht geladen werden. Es wurde kein Backup erstellt, versuch es nochmal.");
+  profiles.sort((a, b) => a.nr - b.nr);
+  const file = { app: "notenmanager", kind: "daten", v: 1, createdAt: Date.now(), hinweis: "Daten-Backup des Notenmanagers. Die Noten sind mit dem Code der jeweiligen Person verschlüsselt.", profiles };
+  downloadFile("notenmanager-daten-backup-" + fileStamp() + ".json", JSON.stringify(file, null, 1));
+  markBackup("daten");
+  return profiles.length;
+}
+function parseDataBackup(txt) {
+  let x; try { x = JSON.parse(txt); } catch (e) { x = null; }
+  if (!x || x.app !== "notenmanager" || x.kind !== "daten" || !Array.isArray(x.profiles)) throw new Error("Das ist kein Daten-Backup. Erwartet wird die Datei aus „Daten-Backup herunterladen“.");
+  const profiles = x.profiles.filter(p => p && /^[0-9a-f]{40}$/.test(p.docId) && typeof p.iv === "string" && p.iv.length < 64 && typeof p.ct === "string" && p.ct.length < 900000)
+    .map(p => ({ nr: +p.nr || 0, docId: p.docId, v: +p.v || 1, updatedAt: +p.updatedAt || 0, iv: p.iv, ct: p.ct }));
+  if (!profiles.length) throw new Error("In dieser Datei ist kein Profil gespeichert.");
+  return { createdAt: +x.createdAt || 0, profiles };
+}
+async function restoreProfiles(list) {
+  const d = await getDb();
+  if (!d) throw new Error("Keine Verbindung zur Datenbank. Versuch es später nochmal.");
+  // Neuer Zeitstempel, damit alle Geräte den wiederhergestellten Stand übernehmen statt ihn zu überschreiben
+  const now = Date.now();
+  let ok = 0;
+  for (const p of list) {
+    try { await d.doc("nm/" + p.docId).set({ v: p.v, updatedAt: now, iv: p.iv, ct: p.ct }); ok++; ui.adminSeen && (ui.adminSeen[(ui.adminVault.find(e => e.docId === p.docId) || {}).nr] = now); }
+    catch (err) { throw new Error((ok ? ok + " Profil(e) wiederhergestellt, dann " : "") + "Fehler beim Schreiben von Profil " + p.nr + ". Versuch es nochmal."); }
+  }
+  return ok;
+}
+// Codes-Backup: lesbare Liste mit Code, Name, Notiz und Status (ohne Noten)
+function exportCodesBackup() {
+  const codes = ui.adminVault.slice().sort((a, b) => a.nr - b.nr).map(e => ({ profil: e.nr, name: e.name || "", code: fmtCode(e.code), notiz: e.note || "", status: e.nr !== ADMIN_NR && e.blocked ? "gesperrt" : "aktiv", erstellt: e.created || null }));
+  const file = { app: "notenmanager", kind: "codes", v: 1, createdAt: Date.now(), hinweis: "Codes-Backup des Notenmanagers. Getrennt vom Daten-Backup aufbewahren: Codes und Daten zusammen machen alle Noten lesbar.", codes };
+  downloadFile("notenmanager-codes-backup-" + fileStamp() + ".json", JSON.stringify(file, null, 1));
+  markBackup("codes");
+  return codes.length;
+}
+async function parseCodesBackup(txt) {
+  let x; try { x = JSON.parse(txt); } catch (e) { x = null; }
+  if (!x || x.app !== "notenmanager" || x.kind !== "codes" || !Array.isArray(x.codes)) throw new Error("Das ist kein Codes-Backup. Erwartet wird die Datei aus „Codes-Backup herunterladen“.");
+  const entries = [], seen = new Set();
+  for (const c of x.codes) {
+    const nr = +(c && c.profil), code = normCode(c && c.code);
+    if (!Number.isInteger(nr) || nr < 1 || code.length !== 12 || seen.has(nr) || entries.some(e => e.code === code)) throw new Error("Das Codes-Backup ist beschädigt (Profil " + (c && c.profil) + ").");
+    const h = await sha256hex("nm-code:" + code);
+    if (nr <= 20 && CODE_HASHES[nr - 1] !== h) throw new Error("Der Code von Profil " + nr + " passt nicht zu diesem Notenmanager.");
+    if (nr > 20 && CODE_HASHES.includes(h)) throw new Error("Das Codes-Backup ist beschädigt (Profil " + nr + ").");
+    seen.add(nr);
+    entries.push({ nr, code, h, name: String(c.name || "").slice(0, 40), note: String(c.notiz || "").slice(0, 200), created: +c.erstellt || null, blocked: nr !== ADMIN_NR && c.status === "gesperrt" });
+  }
+  if (!seen.has(ADMIN_NR)) throw new Error("Im Codes-Backup fehlt der Admin-Code (Profil 1).");
+  return { createdAt: +x.createdAt || 0, entries: entries.sort((a, b) => a.nr - b.nr) };
+}
+async function restoreCodes(entries) {
+  const prevVault = ui.adminVault, prevDeleted = codeList.deleted;
+  ui.adminVault = entries.map(e => Object.assign({}, e, { nameDirty: true }));
+  // Startcodes, die nicht im Backup stehen, gelten als gelöscht; alle anderen werden wieder aktiv
+  codeList.deleted = CODE_HASHES.filter((h, i) => !entries.some(e => e.nr === i + 1));
+  try { await saveCodeList(); }
+  catch (err) { ui.adminVault = prevVault; codeList.deleted = prevDeleted; throw err; }
+  ui.adminVault = null; // neu laden, inklusive „Zuletzt gespeichert“
+}
+function readFileInput(el, cb) {
+  const f = el.files && el.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => cb(String(r.result || ""), f.name);
+  r.onerror = () => toast("Die Datei konnte nicht gelesen werden.");
+  r.readAsText(f);
+  el.value = "";
+}
+function viewBackups() {
+  const lb = lastBackups(), ed = editing("admin"), busy = !!ui.bkBusy, dis = busy || ed ? " disabled" : "";
+  const due = t => !t || Date.now() - t > 14 * 86400000;
+  const lastLine = (label, t) => '<span style="' + (due(t) ? "color:var(--warn);font-weight:600" : "") + '">' + label + ": " + (t ? "letztes Backup " + agoText(t) : "noch kein Backup") + "</span>";
+  const nameOf = nr => { const e = ui.adminVault.find(x => x.nr === nr); return e ? (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + nr + "</span>") : '<span class="muted">Profil ' + nr + " (Code fehlt)</span>"; };
+  let h = '<section class="card" id="backups"><div class="card-head"><div><h2>Backups</h2><span class="muted small">' + lastLine("Daten", lb.daten) + " · " + lastLine("Codes", lb.codes) + " (auf diesem Gerät)</span></div></div>" +
+    '<p class="muted small" style="margin:0 0 14px">Daten und Codes werden getrennt gesichert. Bewahre die beiden Dateien an verschiedenen Orten auf: Wer beide hat, kann alle Noten lesen.</p>';
+  // Daten
+  h += '<h3>Daten-Backup</h3><p class="muted small" style="margin:4px 0 10px">Alle gespeicherten Profile mit ihren Noten, so verschlüsselt wie in der Datenbank. Ohne die Codes kann niemand die Noten lesen.</p>' +
+    '<div class="actions"><button class="btn primary" data-action="bk-data-export"' + dis + ">" + (ui.bkBusy === "data-export" ? "Lade Profile …" : "Daten-Backup herunterladen") + "</button>" +
+    '<label class="btn"' + (busy || ed ? ' style="opacity:.5;pointer-events:none"' : "") + '>Daten wiederherstellen …<input type="file" id="bk-data-file" accept=".json,application/json" hidden></label></div>';
+  const bd = ui.bkData;
+  if (bd) {
+    const cf = bd.confirm;
+    h += '<div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px"><div class="card-head" style="margin-bottom:8px"><div><b>' + esc(bd.file) + '</b><br><span class="muted small">Backup vom ' + fmtStamp(bd.createdAt) + " · " + bd.profiles.length + " Profile</span></div>" +
+      '<button class="btn ghost sm" data-action="bk-data-close"' + (busy ? " disabled" : "") + ">Schließen</button></div>" +
+      '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Name</th><th>Stand im Backup</th><th>Aktuell gespeichert</th><th></th></tr></thead><tbody>';
+    for (const p of bd.profiles) {
+      const cur = ui.adminVault.find(e => e.docId === p.docId), seen = cur && ui.adminSeen ? ui.adminSeen[cur.nr] : null;
+      const ask = cf === p.docId;
+      h += "<tr" + (ask ? ' style="background:var(--bad-soft)"' : "") + '><td class="num"><b>' + p.nr + "</b></td><td>" + (cur ? nameOf(cur.nr) : '<span class="muted">Code nicht in der Codeliste</span>') + '</td><td class="small">' + fmtStamp(p.updatedAt) + '</td><td class="small">' + (seen ? fmtStamp(seen) : '<span class="muted">nichts</span>') + "</td><td>" +
+        (ask ? '<div class="actions" style="flex-wrap:nowrap"><span class="small" style="white-space:nowrap">Aktuelle Noten überschreiben?</span><button class="btn danger solid sm" data-action="bk-data-restore" data-id="' + p.docId + '"' + (busy ? " disabled" : "") + '>Ja, wiederherstellen</button><button class="btn sm" data-action="bk-data-cancel">Abbrechen</button></div>'
+          : '<button class="btn sm" data-action="bk-data-ask" data-id="' + p.docId + '"' + (busy || cf ? " disabled" : "") + ">Wiederherstellen</button>") + "</td></tr>";
+    }
+    h += "</tbody></table></div>";
+    h += cf === "all"
+      ? '<div class="actions" style="margin-top:10px;padding:10px;border-radius:10px;background:var(--bad-soft)"><span class="small"><b>Alle ' + bd.profiles.length + " Profile</b> auf den Stand vom " + fmtStamp(bd.createdAt) + " zurücksetzen? Neuere Noten in diesen Profilen gehen verloren.</span>" +
+        '<button class="btn danger solid sm" data-action="bk-data-restore" data-id="all"' + (busy ? " disabled" : "") + ">" + (ui.bkBusy === "data-restore" ? "Stelle wieder her …" : "Ja, alle wiederherstellen") + '</button><button class="btn sm" data-action="bk-data-cancel"' + (busy ? " disabled" : "") + ">Abbrechen</button></div>"
+      : '<div class="actions" style="margin-top:10px"><button class="btn danger" data-action="bk-data-ask" data-id="all"' + (busy || cf ? " disabled" : "") + ">Alle " + bd.profiles.length + " Profile wiederherstellen</button></div>";
+    h += '<p class="muted small" style="margin:10px 0 0">Wiederherstellen ersetzt die gespeicherten Noten des Profils durch den Stand aus dem Backup. Geöffnete Geräte übernehmen den Stand automatisch. Profile ohne Code in der Codeliste stellst du erst nach dem Codes-Backup sinnvoll wieder her.</p></div>';
+  }
+  // Codes
+  h += '<h3 style="margin-top:22px">Codes-Backup</h3><p class="muted small" style="margin:4px 0 10px">Alle Anmeldecodes mit Profilnummer, Name, Notiz und Status als lesbare Datei, ohne Noten. Damit weißt du jederzeit, wer welchen Code hat.</p>' +
+    '<div class="actions"><button class="btn primary" data-action="bk-codes-export"' + dis + ">Codes-Backup herunterladen</button>" +
+    '<label class="btn"' + (busy || ed ? ' style="opacity:.5;pointer-events:none"' : "") + '>Codes wiederherstellen …<input type="file" id="bk-codes-file" accept=".json,application/json" hidden></label></div>';
+  const bc = ui.bkCodes;
+  if (bc) {
+    const cur = new Map(ui.adminVault.map(e => [e.nr, e]));
+    const added = bc.entries.filter(e => !cur.has(e.nr)).length, removed = ui.adminVault.filter(e => !bc.entries.some(x => x.nr === e.nr)).length;
+    h += '<div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px"><div class="card-head" style="margin-bottom:8px"><div><b>' + esc(bc.file) + '</b><br><span class="muted small">Backup vom ' + fmtStamp(bc.createdAt) + " · " + bc.entries.length + " Codes · " + added + " kommen hinzu · " + removed + " fallen weg</span></div>" +
+      '<button class="btn ghost sm" data-action="bk-codes-close"' + (busy ? " disabled" : "") + ">Schließen</button></div>" +
+      '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Name</th><th>Code</th><th>Notiz</th><th>Status</th></tr></thead><tbody>';
+    for (const e of bc.entries) h += '<tr><td class="num"><b>' + e.nr + "</b>" + (cur.has(e.nr) ? "" : ' <span class="badge">neu</span>') + "</td><td>" + (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + e.nr + "</span>") + '</td><td><span style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + "</span></td><td>" + (e.note ? esc(e.note) : '<span class="muted">–</span>') + "</td><td>" + (e.blocked ? "gesperrt" : "aktiv") + "</td></tr>";
+    h += "</tbody></table></div>";
+    h += !isFbAdmin()
+      ? '<p class="small" style="margin:10px 0 0;color:var(--warn)">Zum Wiederherstellen melde dich oben mit deinem Admin-Konto an. Ansehen geht auch so.</p>'
+      : bc.confirm
+        ? '<div class="actions" style="margin-top:10px;padding:10px;border-radius:10px;background:var(--bad-soft)"><span class="small">Codeliste durch das Backup ersetzen? Codes, die nicht im Backup stehen' + (removed ? " (" + removed + ")" : "") + ", können sich danach nicht mehr anmelden; ihre Noten bleiben gespeichert.</span>" +
+          '<button class="btn danger solid sm" data-action="bk-codes-restore"' + (busy ? " disabled" : "") + ">" + (ui.bkBusy === "codes-restore" ? "Speichere …" : "Ja, Codeliste ersetzen") + '</button><button class="btn sm" data-action="bk-codes-cancel"' + (busy ? " disabled" : "") + ">Abbrechen</button></div>"
+        : '<div class="actions" style="margin-top:10px"><button class="btn danger" data-action="bk-codes-ask"' + dis + ">Codeliste aus diesem Backup übernehmen</button></div>";
+    h += "</div>";
+  }
+  return h + "</section>";
 }
 function viewAdmin() {
   if (!session || !session.admin) return "";
@@ -2053,7 +2233,11 @@ function viewAdmin() {
   }
   const ed = editing("admin"), seen = ui.adminSeen || {};
   const active = ui.adminVault.filter(e => !e.blocked).length;
-  let h = isFbAdmin()
+  const lb = lastBackups(), dueDays = t => !t || Date.now() - t > 14 * 86400000;
+  let h = dueDays(lb.daten) || dueDays(lb.codes)
+    ? '<div class="fc-bar" style="position:static"><span class="small"><b>Backup fällig:</b> Daten ' + (lb.daten ? agoText(lb.daten) : "noch nie") + " gesichert, Codes " + (lb.codes ? agoText(lb.codes) : "noch nie") + ' gesichert (auf diesem Gerät).</span><button class="btn sm" data-action="bk-scroll">Zu den Backups</button></div>'
+    : "";
+  h += isFbAdmin()
     ? '<section class="card"><div class="card-head"><div><h2>Admin-Konto</h2><span class="muted small">Angemeldet als ' + esc(fbUser.email || "Admin") + ' · Änderungen an der Codeliste sind freigeschaltet</span></div><button class="btn sm" data-action="admin-auth-logout">Admin abmelden</button></div></section>'
     : '<section class="card"><div class="card-head"><div><h2>Admin-Konto</h2><span class="muted small">Zum Ändern der Codeliste (erstellen, sperren, löschen, Namen) meldest du dich einmal mit deinem Firebase-Admin-Konto an. Ansehen geht auch ohne.</span></div></div>' +
       '<form id="admin-auth-form" class="form-row"><label class="field"><span>E-Mail</span><input type="email" id="admin-auth-email" autocomplete="username"></label>' +
@@ -2079,7 +2263,7 @@ function viewAdmin() {
         : '<button class="btn ghost sm danger" data-action="admin-delete-ask" data-nr="' + e.nr + '"' + (ui.adminBusy || ui.edit ? " disabled" : "") + ">" + ICON_TRASH + " Löschen</button>") + "</td>") + "</tr>";
   }
   h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Der Name steht beim jeweiligen Konto oben rechts statt „Profil XY“. Er wird mit dem Code der Person verschlüsselt und ist ab der nächsten Anmeldung sichtbar. Ein gesperrter Code kann sich nicht mehr anmelden, seine Noten bleiben aber erhalten. Löschen entfernt den Code und die gespeicherten Noten endgültig; das lässt sich nicht rückgängig machen. Als Admin kannst du die Noten anderer Profile nicht lesen.</p></section>';
-  return h;
+  return h + viewBackups();
 }
 
 function logout() {
@@ -2090,7 +2274,7 @@ function logout() {
   removeLS(LS_SESSION);
   if (fbUser) adminSignOut();
   forecast = null; state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null; ui.loginError = "";
-  ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null;
+  ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null; ui.bkData = null; ui.bkCodes = null; ui.bkBusy = null;
   if (location.hash) location.hash = "";
   updateHeader(); render();
 }
