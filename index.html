@@ -1366,9 +1366,7 @@ async function loadAdminVault() {
   } catch (e) { entries = null; ui.adminError = "Die Codeliste konnte nicht entschlüsselt werden."; }
   if (session !== my) return;
   await getAuthApi();
-  if (entries && codeListMissing && MIGRATION_CODES && isFbAdmin()) {
-    try { const dm = await getDb(); if (dm) { await dm.doc(CODES_DOC).set(MIGRATION_CODES); codeListMissing = false; } } catch (e) {}
-  }
+  if (entries) await migrateCodesIfNeeded();
   ui.adminVault = entries; ui.adminLoading = false; ui.adminSeen = {};
   render();
   // Wann wurde welches Profil zuletzt gespeichert? (nur Zeitstempel, die Noten bleiben verschlüsselt)
@@ -1498,7 +1496,7 @@ document.addEventListener("submit", async e => {
   e.preventDefault();
   const email = document.getElementById("admin-auth-email").value.trim(), pw = document.getElementById("admin-auth-pw").value;
   ui.adminAuthBusy = true; ui.adminAuthError = ""; render();
-  try { await adminSignIn(email, pw); ui.adminAuthBusy = false; render(); toast("Als Admin angemeldet"); }
+  try { await adminSignIn(email, pw); await fetchCodeList(); await migrateCodesIfNeeded(); ui.adminAuthBusy = false; render(); toast("Als Admin angemeldet"); }
   catch (err) { ui.adminAuthBusy = false; ui.adminAuthError = err.message; render(); const i = document.getElementById("admin-auth-email"); if (i) i.value = email; }
 });
 document.addEventListener("submit", async e => {
@@ -1577,6 +1575,11 @@ async function adminSignIn(email, pw) {
   catch (e) { throw new Error(e && /invalid-credential|wrong-password|user-not-found|invalid-email/.test(e.code || "") ? "E-Mail oder Passwort stimmt nicht." : e && e.code === "auth/too-many-requests" ? "Zu viele Versuche. Warte kurz und versuch es nochmal." : "Anmeldung fehlgeschlagen."); }
   fbUser = a.auth.currentUser;
   if (!isFbAdmin()) { await a.m.signOut(a.auth); fbUser = null; throw new Error("Dieses Konto ist nicht als Admin eingetragen."); }
+}
+// Codeliste aus dem alten Speicher einmalig nach Firestore schreiben (nur Admin-Konto darf das)
+async function migrateCodesIfNeeded() {
+  if (!codeListMissing || !MIGRATION_CODES || !isFbAdmin()) return;
+  try { const dm = await getDb(); if (dm) { await dm.doc(CODES_DOC).set(MIGRATION_CODES); codeListMissing = false; } } catch (e) {}
 }
 async function adminSignOut() { const a = await getAuthApi(); if (a) { try { await a.m.signOut(a.auth); } catch (e) {} } fbUser = null; }
 
