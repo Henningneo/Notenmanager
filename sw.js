@@ -3,7 +3,7 @@
      Nur ohne Verbindung wird die zuletzt geladene Fassung aus dem Cache genommen.
    - Symbole, Manifest, Schriften und die Firebase-Bibliotheken (feste Versionsnummer) werden zwischengespeichert.
    - Anfragen an Firebase selbst (Datenbank, Anmeldung) laufen nie über diesen Service Worker. */
-const VERSION = "nm-v17";
+const VERSION = "nm-v18";
 const CACHE = VERSION;
 const CORE = [
   "./",
