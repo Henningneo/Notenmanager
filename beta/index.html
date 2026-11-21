@@ -166,11 +166,19 @@ tfoot td { font-weight: 700; border-bottom: none; }
 .fc-start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .fc-bar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); border: 1px dashed var(--warn); }
 .fc-bar > div { display: flex; flex-direction: column; gap: 2px; }
+.sec-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; background: var(--bad-soft); color: var(--fg); border: 1px solid var(--bad); }
+.sec-bar > div { display: flex; flex-direction: column; gap: 2px; }
+.code-box { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 1.25rem; letter-spacing: .06em; }
 body.forecast #app { outline: 2px dashed var(--warn); outline-offset: 6px; border-radius: 12px; }
 .site-foot p { margin: 0 0 6px; }
 .site-foot summary { cursor: pointer; font-weight: 600; width: fit-content; }
 .site-foot details[open] summary { margin-bottom: 6px; }
 .site-foot { margin-top: 40px; padding-top: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); font-size: .72rem; line-height: 1.5; color: var(--muted); opacity: .8; }
+.modal-bg { position: fixed; inset: 0; z-index: 30; background: rgba(10, 20, 40, .45); display: grid; place-items: center; padding: 16px; }
+.modal-bg[hidden] { display: none; }
+.modal { width: 100%; max-width: 380px; display: grid; gap: 12px; }
+.modal p { margin: 0; }
+.modal .actions { justify-content: flex-end; }
 .edit-note { font-size: .82rem; color: var(--accent); font-weight: 600; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin: 0; }
 .kv div { min-width: 0; }
@@ -228,11 +236,42 @@ details.settings[open] > summary { margin-bottom: 12px; }
 .ptable div { text-align: center; padding: 6px 0; border-radius: 6px; background: var(--surface-2); font-size: .82rem; }
 .ptable b { display: block; font-size: 1rem; }
 @media (max-width: 520px) { .ptable { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.seg { display: grid; gap: 10px; }
+.seg .check { align-items: flex-start; }
+/* Optionen: links Gruppen, rechts Einstellungen der Gruppe (Handy: erst Liste, dann Gruppe) */
+.opt-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+.opt-nav { display: grid; gap: 4px; padding: 8px; position: sticky; top: 118px; }
+.opt-item { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border-radius: 8px; border: 1px solid transparent; background: none; text-align: left; cursor: pointer; width: 100%; color: var(--fg); }
+.opt-item:hover { background: var(--surface-2); }
+.opt-item[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.opt-item .oi { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: var(--surface-2); color: var(--accent); }
+.opt-item[aria-current="true"] .oi { background: var(--surface); }
+.opt-item .oi svg { width: 18px; height: 18px; }
+.opt-item b { display: block; font-size: .95rem; }
+.opt-item small { display: block; color: var(--muted); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-item .chev { color: var(--muted); display: none; }
+.opt-main { display: grid; gap: 18px; min-width: 0; }
+.opt-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.opt-title h2 { margin: 0; font-size: 1.35rem; }
+.opt-back { display: none; }
+.opt-main .subj-layout { grid-template-columns: 240px minmax(0, 1fr); }
+@media (max-width: 1100px) { .opt-main .subj-layout { grid-template-columns: 1fr; } .opt-main .subj-list.collapsed .subj-item { display: none; } .opt-main .list-toggle { display: inline-flex; } }
+@media (max-width: 760px) {
+  .opt-layout { grid-template-columns: 1fr; }
+  .opt-nav { position: static; padding: 6px; }
+  .opt-item { padding: 12px 10px; }
+  .opt-item .chev { display: block; }
+  .opt-item[aria-current="true"] { background: none; border-color: transparent; }
+  .opt-item[aria-current="true"] .oi { background: var(--surface-2); }
+  .opt-layout.detail .opt-nav, .opt-layout:not(.detail) .opt-main { display: none; }
+  .opt-back { display: inline-flex; }
+}
+.info-wrap { display: grid; gap: 18px; }
+nav.tabs .t-short { display: none; }
+@media (max-width: 520px) { nav.tabs { gap: 0; } nav.tabs a { padding: 9px 6px 10px; font-size: .84rem; } nav.tabs .t-long { display: none; } nav.tabs .t-short { display: inline; } }
 .beta-bar { margin-top: 12px; padding: 8px 12px; border-radius: 8px; background: var(--warn-soft); color: var(--fg); font-size: .85rem; }
 .beta-bar a { color: var(--accent); font-weight: 600; }
 .badge.beta { background: var(--warn-soft); color: var(--warn); vertical-align: middle; }
-.seg { display: grid; gap: 10px; }
-.seg .check { align-items: flex-start; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -256,6 +295,7 @@ details.settings[open] > summary { margin-bottom: 12px; }
       <a href="#uebersicht" data-tab="uebersicht">Übersicht</a>
       <a href="#faecher" data-tab="faecher">Fächer &amp; Noten</a>
       <a href="#abitur" data-tab="abitur">Abitur</a>
+      <a href="#informationen" data-tab="informationen"><span class="t-long">Informationen</span><span class="t-short">Infos</span></a>
       <a href="#optionen" data-tab="optionen">Optionen</a>
       <a href="#admin" data-tab="admin" id="tab-admin" hidden>Admin</a>
     </nav>
@@ -267,11 +307,19 @@ details.settings[open] > summary { margin-bottom: 12px; }
   <p>Alle Berechnungen ohne Gewähr. Der Notenmanager ist ein privates Hilfsmittel und kann Fehler enthalten. Maßgeblich sind allein die Angaben deiner Schule und die GSO. Lade unter Optionen regelmäßig ein Backup herunter, damit keine Daten verloren gehen. Für Richtigkeit, Vollständigkeit und Verfügbarkeit der Daten und Berechnungen wird keine Haftung übernommen.</p>
   <details><summary>Datenschutz</summary>
     <p>Gespeichert werden deine Fächer und Noten sowie der Name, den der Admin deinem Code gibt. Beides wird schon auf deinem Gerät mit deinem Anmeldecode verschlüsselt und nur verschlüsselt übertragen. Lesen kann es nur, wer deinen Code kennt: du und der Admin, der die Codes vergibt. Der Betreiber der Datenbank sieht nur verschlüsselte Daten. Zusätzlich liegt eine verschlüsselte Kopie im Speicher deines Browsers.</p>
+    <p>Für die Liste der letzten Anmeldungen (Optionen, Sicherheit) werden Zeitpunkt und Gerätetyp gespeichert, z. B. „Android, Chrome“, ebenfalls mit deinem Code verschlüsselt. IP-Adressen werden nicht gespeichert. Änderst du deinen Code, bleibt ein Vermerk vom alten auf den neuen Code (nur als Prüfsumme). Der neue Code wird zusätzlich so verschlüsselt hinterlegt, dass nur der Admin ihn lesen kann, damit er dein Profil weiter verwalten kann.</p>
     <p>Die verschlüsselten Daten liegen in Google Firebase (Cloud Firestore, Rechenzentren in der EU). Die Seite wird über GitHub Pages ausgeliefert, die Firebase-Bibliotheken kommen von Google. Dabei verarbeiten GitHub und Google technisch bedingt deine IP-Adresse und Browserdaten. Die Schriftarten liegen direkt auf dieser Seite. Es gibt keine Werbung, kein Tracking und keine Weitergabe an Dritte.</p>
     <p>Wenn deine Daten gelöscht werden sollen, wende dich an die Person, von der du deinen Code hast. Dann werden Code und Profil entfernt. Mit der Nutzung nimmst du diese Hinweise zur Kenntnis.</p>
   </details>
 </footer>
 <div class="toast" id="toast" hidden></div>
+<div class="modal-bg" id="logout-modal" data-action="logout-cancel" hidden>
+  <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="logout-title">
+    <h2 id="logout-title">Wirklich abmelden?</h2>
+    <p class="muted">Zum erneuten Anmelden brauchst du deinen Anmeldecode.</p>
+    <div class="actions"><button class="btn" data-action="logout-cancel">Abbrechen</button><button class="btn danger solid" data-action="logout-confirm">Abmelden</button></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -596,8 +644,6 @@ function groupMins() {
   state.subjects.filter(s => s.group === "vk").forEach(v => { const p = findS(v.vkPartner); g.push({ subs: p ? [v, p] : [v], hjs: [0, 1], min: 3, label: esc(v.name) + (p ? " + " + esc(p.name) : "") + ": 3 aus 12/1–12/2" }); });
   return g;
 }
-// Optionsregel: nur Fächer mit Belegung über 4 Halbjahre, die kein Abiturfach sind
-function optionCandidates() { return state.subjects.filter(s => fullyBelegt(s) && !isAbi(s) && effP(s) > 0 && !["sport", "none", "seminar", "vk"].includes(s.group)); }
 // Wie viele Einbringungen sind bei voller Belegung Pflicht? (inkl. Seminararbeit)
 function plannedMandatory(reduceId) {
   let n = SLOTS_SEMINAR;
@@ -655,23 +701,6 @@ function computeAll() {
   const slots = SLOTS_TOTAL - SLOTS_SEMINAR;
   let sel = selectFor(slots), streichFach = null, streichArt = null;
   const planned = plannedMandatory();
-  const cands = optionCandidates();
-  if (planned > SLOTS_TOTAL) {
-    // Optionsregel Möglichkeit 2: Streichung nötig, damit die Fächerwahl in 40 Einbringungen passt
-    let best = null;
-    for (const s of cands) {
-      if (plannedMandatory(s.id) > SLOTS_TOTAL) continue;
-      const alt = selectFor(slots, s.id);
-      if (!best || alt.sum > best.sel.sum) best = { sel: alt, s };
-    }
-    if (best) { sel = best.sel; streichFach = best.s; streichArt = "Streichung"; }
-  } else if (state.settings.streichung) {
-    // Optionsregel Möglichkeit 1: Ersatz durch eine bessere Halbjahresleistung
-    for (const s of cands) {
-      const alt = selectFor(slots, s.id);
-      if (alt.n >= sel.n && alt.sum > sel.sum) { sel = alt; streichFach = s; streichArt = "Ersatz"; }
-    }
-  }
   const plannedFinal = streichFach && streichArt === "Streichung" ? plannedMandatory(streichFach.id) : planned;
   let all = 0;
   for (const s of state.subjects) for (let h = 0; h < 4; h++) if (hjl(s, h)) all++;
@@ -721,18 +750,32 @@ function currentTab() {
   const t = (location.hash || "").slice(1);
   if (t === "admin") return session && session.admin ? "admin" : "uebersicht";
   if (t === "abitur" && isUms()) return "uebersicht";
-  return ["uebersicht", "faecher", "abitur", "optionen"].includes(t) ? t : "uebersicht";
+  return ["uebersicht", "faecher", "abitur", "informationen", "optionen"].includes(t) ? t : "uebersicht";
 }
+// Halbjahr nach Datum: 2. Halbjahr vom 15. Februar bis 31. Juli, sonst 1. Halbjahr
+function dateHalf(d) { d = d || new Date(); const m = d.getMonth(), day = d.getDate(); return (m === 1 && day >= 15) || (m >= 2 && m <= 6) ? 1 : 0; }
+// Aktuelles Halbjahr automatisch nachführen: Oberstufe nach gewähltem Jahr (Q12/Q13) und Datum, Unter-/Mittelstufe nach Datum
+function syncCurrentHj() {
+  const half = dateHalf(), cur = state.settings.currentHj || 0;
+  let want = (cur >= 2 ? 2 : 0) + half;
+  if (half === 0 && cur === 1) want = 2;   // nach den Sommerferien: aus 12/2 wird 13/1
+  if (half === 0 && cur === 3) want = 3;   // nach dem Abitur bleibt 13/2
+  state.settings.currentHj = want;
+  if (state.ums) state.ums.currentHj = half;
+}
+function setOsYear(base) { state.settings.currentHj = base + dateHalf(); }
 function render() {
   if (!session) { app.innerHTML = viewLogin(); return; }
+  syncCurrentHj();
   updateModeUi();
   const tab = currentTab();
   document.querySelectorAll("nav.tabs a").forEach(a => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
   const focusId = document.activeElement && document.activeElement.id;
   document.body.classList.toggle("forecast", !!forecast);
   app.innerHTML = (forecast ? '<div class="fc-bar"><div><b>Prognosemodus</b><span class="small">Probier Noten aus, so viel du willst. Nichts davon wird gespeichert.</span></div><button class="btn sm" data-action="forecast-end">Prognosemodus verlassen</button></div>' : "") +
-    (tab === "admin" ? BETA_ADMIN_NOTE + viewAdmin() : tab === "optionen" ? viewOptions() : isUms() ? (tab === "faecher" ? uViewSubjects() : uViewOverview()) :
-      (tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : viewOverview()));
+    secBar() +
+    (tab === "admin" ? BETA_ADMIN_NOTE + viewAdmin() : tab === "optionen" ? viewOptions() : tab === "informationen" ? viewInfo() : isUms() ? (tab === "faecher" ? uViewSubjects() : uViewOverview()) :
+    (tab === "faecher" ? viewSubjects() : tab === "abitur" ? viewAbitur() : viewOverview()));
   if (focusId) { const el = document.getElementById(focusId); if (el && el.tagName !== "BUTTON") el.focus(); }
 }
 
@@ -1154,25 +1197,25 @@ function viewAbitur() {
 }
 
 /* ---- Optionen ---- */
-function viewOptions() {
-  if (isUms()) return uViewOptions() + viewModeCard();
+function osOptGeneral() {
   const L = hjLabels();
   const edB = editing("base");
-  let h = viewManageSubjects(L);
-  h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
+  let h = '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Gelten dauerhaft für deine Oberstufe</span></div>' + editBar("base") + "</div>" +
     (edB
       ? '<div class="grid" style="gap:14px"><label class="field" style="max-width:320px"><span>Jahrgangsstufen</span><select id="o-labels" data-opt="labels"><option value="g9"' + (state.settings.labels === "g9" ? " selected" : "") + ">12/1 – 13/2 (G9)</option><option value=\"g8\"" + (state.settings.labels === "g8" ? " selected" : "") + ">11/1 – 12/2 (G8)</option></select></label>" +
         '<label class="check"><input type="checkbox" id="o-kumu" data-opt="kumuLf"' + (state.settings.kumuLf ? " checked" : "") + "> Meine Schule bietet Kunst/Musik als Leistungsfach an (sonst nur Kolloquium)</label></div>"
       : '<dl class="kv"><div><dt>Jahrgangsstufen</dt><dd>' + (state.settings.labels === "g8" ? "11/1 – 12/2 (G8)" : "12/1 – 13/2 (G9)") + "</dd></div>" +
         "<div><dt>Kunst/Musik als Leistungsfach</dt><dd>" + (state.settings.kumuLf ? "an meiner Schule angeboten" : "nicht angeboten (nur Kolloquium)") + "</dd></div></dl>") + "</section>";
-  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
-    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="o-cur" data-opt="currentHj">' + L.map((l, i) => '<option value="' + i + '"' + (state.settings.currentHj === i ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label></div>" +
+  h += '<section class="card"><div class="card-head"><h2>Schuljahr und Halbjahr</h2></div><div class="grid" style="gap:14px">' +
+    '<div class="form-row"><label class="field"><span>Ich bin in der</span><select id="o-year" data-action="os-year"><option value="0"' + (state.settings.currentHj < 2 ? " selected" : "") + ">Q" + L[0].split("/")[0] + '</option><option value="2"' + (state.settings.currentHj >= 2 ? " selected" : "") + ">Q" + L[2].split("/")[0] + "</option></select></label>" +
+    '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + L[state.settings.currentHj] + "</div></div></div>" +
+    '<p class="muted small" style="margin:0">Das Halbjahr stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar) und wird beim Eintragen von Noten vorausgewählt. Nach den Sommerferien geht es von der Q' + L[0].split("/")[0] + " automatisch in die Q" + L[2].split("/")[0] + ".</p>" +
     (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
-    '<label class="check"><input type="checkbox" id="o-str" data-opt="streichung"' + (state.settings.streichung ? " checked" : "") + "> Optionsregel nutzen: eine Pflicht-Halbjahresleistung durch eine bessere ersetzen (nur Fächer mit 4 Halbjahren, die kein Abiturfach sind; Fremdsprachen und Naturwissenschaften bleiben bei je mind. 4)</label>" +
-    '<p class="muted small" style="margin:0">Passen deine Pflichteinbringungen nicht in 40, z. B. bei Leistungsfach Sport, streicht der Rechner automatisch eine (Optionsregel, Möglichkeit 2).</p></div></div>' +
-    viewDataCard() + "</section>";
-  h += '<section class="card"><div class="card-head"><h2>Punkte und Noten</h2></div><div class="ptable">' +
-    Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
+    "</div></section>";
+  return h;
+}
+function osInfo() {
+  let h = "";
   h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
     "<li><b>Halbjahresleistung</b> (§ 29 Abs. 2 GSO): Durchschnitt aus der Schulaufgabe bzw. Klausur und dem Durchschnitt der kleinen Leistungsnachweise, also 1 : 1. Gibt es mehrere große Leistungsnachweise, wird ihr Durchschnitt genommen. Gerundet wird kaufmännisch, auf 1 Punkt darf aber nicht aufgerundet werden. Vorgabe: 1 Schulaufgabe und mind. 2 kleine Leistungsnachweise, davon mind. 1 mündlich. In Fächern auf grundlegendem Niveau zählen in 13/2 nur die kleinen Leistungsnachweise (mind. 1 schriftlich, 1 mündlich).</li>" +
     "<li><b>Kleine Leistungsnachweise</b> (Exen, Tests, Abfragen, Unterrichtsbeiträge) zählen untereinander gleich. Wenn deine Lehrkraft anders gewichtet, stell das Gewicht bei der Note ein.</li>" +
@@ -1191,11 +1234,43 @@ function viewOptions() {
     "<li><b>Abischnitt</b> (Anlage 13 GSO): 823–900 Punkte = 1,0, danach alle 18 Punkte eine Zehntelnote, 300 Punkte = 4,0. Unter 300 Punkten ist das Abitur nicht bestanden.</li>" +
     "<li>Solange nicht alle Noten feststehen, wird <b>hochgerechnet</b>: Block I aus dem Schnitt deiner bisher eingebrachten Leistungen, fehlende Prüfungen aus deinem Fachschnitt.</li></ul>" +
     '<p class="muted small">Ohne Gewähr. Verbindlich sind die Gymnasialschulordnung und deine Schule. Quellen: <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-29" target="_blank" rel="noopener">§ 29 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-44" target="_blank" rel="noopener">§ 44 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-48" target="_blank" rel="noopener">§ 48 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-53" target="_blank" rel="noopener">§ 53 GSO</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_17" target="_blank" rel="noopener">Anlage 10</a>, <a href="https://www.gesetze-bayern.de/Content/Document/BayGSO-ANL_23" target="_blank" rel="noopener">Anlage 13</a>, <a href="https://www.gymnasiale-oberstufe.bayern.de/" target="_blank" rel="noopener">gymnasiale-oberstufe.bayern.de</a>.</p></section>';
-  return h + viewModeCard();
+  h += '<section class="card"><div class="card-head"><h2>Punkte und Noten</h2></div><div class="ptable">' +
+    Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<div class="num"><b>' + p + "</b>" + NOTE[p] + "</div>").join("") + "</div></section>";
+  return h;
+}
+/* ---- Optionen: Gruppen ---- */
+const OI = d => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + "</svg>";
+function optGroups() {
+  const u = isUms();
+  return [
+    { k: "faecher", t: "Fächer", d: "Anlegen und einstellen", i: OI('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>') },
+    { k: "allgemein", t: "Allgemein", d: u ? "Jahrgangsstufe, Richtung, Rundung" : "Jahrgangsstufen, Halbjahr", i: OI('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>') },
+    { k: "daten", t: "Daten und Backup", d: "Sichern und einspielen", i: OI('<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>') },
+    { k: "modus", t: "Modus", d: u ? "Unter- und Mittelstufe" : "Oberstufe", i: OI('<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>') },
+    { k: "sicherheit", t: "Sicherheit", d: "Anmeldungen, Code", i: OI('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>') }
+  ];
+}
+function viewOptions() {
+  const G = optGroups();
+  const g = G.find(x => x.k === ui.optSec) || G[0];
+  ui.optSec = g.k;
+  let h = '<section class="opt-layout' + (ui.optDetail ? " detail" : "") + '"><nav class="card opt-nav" aria-label="Einstellungen">';
+  for (const x of G)
+    h += '<button class="opt-item" data-action="opt-sec" data-k="' + x.k + '" aria-current="' + (x.k === g.k) + '"><span class="oi">' + x.i + "</span><span><b>" + x.t + "</b><small>" + x.d + '</small></span><span class="chev" aria-hidden="true">›</span></button>';
+  h += '</nav><div class="opt-main"><div class="opt-title"><button class="btn sm opt-back" data-action="opt-back">‹ Alle Einstellungen</button><h2>' + g.t + "</h2></div>";
+  if (g.k === "faecher") h += isUms() ? uViewManage() : viewManageSubjects(hjLabels());
+  else if (g.k === "allgemein") h += isUms() ? umsOptGeneral() : osOptGeneral();
+  else if (g.k === "daten") h += viewDataCard();
+  else if (g.k === "modus") h += viewModeCard();
+  else h += viewSecurity();
+  return h + "</div></section>";
+}
+function viewInfo() {
+  return '<div class="info-wrap">' + (isUms() ? umsInfo() : osInfo()) + "</div>";
 }
 
 function viewDataCard() {
-  return '<div class="card"><div class="card-head"><h2>Daten</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
+  return '<div class="card"><div class="card-head"><h2>Backup</h2><span class="muted small" id="sync-detail">' + syncDetail() + "</span></div><div class=\"grid\" style=\"gap:12px\">" +
     '<div class="actions"><button class="btn" data-action="export">Backup herunterladen</button><button class="btn" data-action="copy">In Zwischenablage kopieren</button></div>' +
     '<label class="field"><span>Backup einfügen (JSON) oder Datei wählen</span><textarea id="import-text" placeholder="{ &quot;v&quot;: 1, … }"></textarea></label>' +
     '<div class="actions"><input type="file" id="import-file" accept=".json,application/json" style="max-width:100%"><button class="btn primary" data-action="import">Importieren</button></div>' +
@@ -1572,16 +1647,15 @@ function uViewSubjectSettings(s) {
 }
 function viewModeCard() {
   const ums = isUms(), other = ums ? "Oberstufe" : "Unter- und Mittelstufe";
-  return '<section class="card"><div class="card-head"><div><h2>Modus</h2><span class="muted small">Deine Daten aus beiden Modi bleiben beim Wechseln erhalten</span></div></div>' +
+  return '<section class="card"><div class="card-head"><div><h2>Modus wechseln</h2><span class="muted small">Deine Daten aus beiden Modi bleiben beim Wechseln erhalten</span></div></div>' +
     '<p style="margin:0 0 12px">Aktuell: <b>' + (ums ? "Unter- und Mittelstufe" : "Oberstufe") + '</b> <span class="muted small">' + (ums ? "Klasse 5 bis 11, Noten 1 bis 6" : "12/1 bis 13/2, Punkte 0 bis 15, Abitur") + "</span></p>" +
     '<div class="actions">' + (ui.confirm === "mode"
       ? '<span class="small">Bist du sicher, dass du zur ' + other + ' wechseln willst?</span><button class="btn primary sm" data-action="mode-switch">Ja</button><button class="btn sm" data-action="cancel-confirm">Nein</button>'
       : '<button class="btn sm" data-action="mode-ask">Zur ' + other + " wechseln</button>") + "</div></section>";
 }
-function uViewOptions() {
+function umsOptGeneral() {
   const u = U(), edB = editing("ubase");
-  let h = uViewManage();
-  h += '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Unter- und Mittelstufe</span></div>' + editBar("ubase") + "</div>" +
+  let h = '<section class="card' + (edB ? " editing" : "") + '"><div class="card-head"><div><h2>Grundeinstellungen</h2><span class="muted small">Unter- und Mittelstufe</span></div>' + editBar("ubase") + "</div>" +
     (edB
       ? '<div class="form-row"><label class="field"><span>Jahrgangsstufe</span><select id="uo-jgst" data-uopt="jgst">' + [5, 6, 7, 8, 9, 10, 11].map(j => '<option value="' + j + '"' + (u.jgst === j ? " selected" : "") + ">" + j + "</option>").join("") + "</select></label>" +
         '<label class="field"><span>Ausbildungsrichtung</span><select id="uo-richt" data-uopt="richt">' + Object.entries(URICHT).map(([k, l]) => '<option value="' + k + '"' + (u.richt === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
@@ -1589,10 +1663,13 @@ function uViewOptions() {
         '<p class="muted small" style="margin:10px 0 0">Die Ausbildungsrichtung bestimmt das zusätzliche Kernfach (NTG Chemie, WSG-W Wirtschaft und Recht, WSG-S Politik und Gesellschaft, MuG Musik). Sie wirkt auf neu angelegte Fächer; bestehende Fächer stellst du einzeln um. Die Rundung regelt die GSO nicht fest, frag im Zweifel deine Lehrkraft.</p>'
       : '<dl class="kv"><div><dt>Jahrgangsstufe</dt><dd>' + u.jgst + "</dd></div><div><dt>Ausbildungsrichtung</dt><dd>" + URICHT[u.richt] + "</dd></div>" +
         "<div><dt>Rundung</dt><dd>" + (UROUND[u.round] || UROUND["50"]).label + "</dd></div></dl>") + "</section>";
-  h += '<section class="grid g-2"><div class="card"><div class="card-head"><h2>Rechnen</h2></div><div class="grid" style="gap:14px">' +
-    '<div class="form-row"><label class="field"><span>Aktuelles Halbjahr</span><select id="uo-cur" data-uopt="currentHj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr (bis Zwischenzeugnis)</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr (bis Jahreszeugnis)</option></select></label></div>" +
-    '<p class="muted small" style="margin:0">Bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></div>' + viewDataCard() + "</section>";
-  h += '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
+  h += '<section class="card"><div class="card-head"><h2>Halbjahr</h2></div><div class="grid" style="gap:14px">' +
+    '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + (u.currentHj === 1 ? "2. Halbjahr (bis Jahreszeugnis)" : "1. Halbjahr (bis Zwischenzeugnis)") + "</div></div>" +
+    '<p class="muted small" style="margin:0">Stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar), wird beim Eintragen von Noten vorausgewählt und bestimmt, ob die Übersicht den Schnitt fürs Zwischenzeugnis oder fürs Jahreszeugnis zeigt.</p></div></section>';
+  return h;
+}
+function umsInfo() {
+  let h = '<section class="card prose"><h2 style="margin-bottom:12px">So wird gerechnet</h2><ul>' +
     "<li><b>Große Leistungsnachweise</b> sind nur die Schulaufgaben. <b>Kleine</b> sind schriftlich (Stegreifaufgaben, Kurzarbeiten, fachliche Leistungstests), mündlich (Abfragen, Unterrichtsbeiträge, Referate) und praktisch (§§ 21, 23 GSO). Kurzarbeiten zählen also als kleine Leistungsnachweise.</li>" +
     "<li><b>Jahresfortgangsnote</b> (§ 28 GSO): Aus allen Schulaufgaben wird ein Durchschnitt gebildet, aus allen kleinen Leistungsnachweisen ein zweiter. In Fächern mit 2 Schulaufgaben stehen beide grundsätzlich 1 : 1, bei mehr als 2 Schulaufgaben 2 : 1. In Fächern ohne Schulaufgaben zählen nur die kleinen Leistungsnachweise. Wie die kleinen untereinander gewichtet werden, legt die Lehrkraft fest; Standard ist hier 1, du kannst bei jeder Note ein anderes Gewicht eintragen.</li>" +
     "<li><b>Beispiel</b>: Schulaufgaben 4, 3, 3 ergeben 3,33, kleine 2, 2, 1, 3, 3 ergeben 2,20. Bei 2 : 1 gilt (2 × 3,33 + 2,20) ÷ 3 = 2,95, also Note 3.</li>" +
@@ -1662,12 +1739,13 @@ function toast(msg) { const t = document.getElementById("toast"); t.textContent 
 function newSubjectFrom(t) {
   return fixSubject({ id: uid(), name: t.name, short: t.short || "", type: t.type || "standard", core: !!t.core, lf: !!t.core, group: t.g || "none", vkFor: t.vkFor || null, max: t.max ?? null, hj: t.hj ? t.hj.slice() : [true, true, true, true] });
 }
+document.addEventListener("keydown", e => { if (e.key === "Escape") { const m = document.getElementById("logout-modal"); if (m && !m.hidden) m.hidden = true; } });
 document.addEventListener("click", e => {
   const el = e.target.closest("[data-action]");
   if (!el || el.tagName === "SELECT") return;
   const a = el.dataset.action, s = el.dataset.id ? findS(el.dataset.id) : null;
   switch (a) {
-    case "open-add": ui.showAdd = true; break;
+    case "open-add": ui.showAdd = true; ui.optSec = "faecher"; ui.optDetail = true; break;
     case "toggle-add": ui.showAdd = !ui.showAdd; render(); return;
     case "opt-select": if (ui.edit) { toast("Speichere zuerst die laufende Bearbeitung."); return; } ui.optSel = el.dataset.id; ui.listOpen = false; ui.confirm = null; render(); return;
     case "toggle-list": ui.listOpen = !ui.listOpen; render(); return;
@@ -1708,10 +1786,11 @@ document.addEventListener("click", e => {
       commit(); toast(picked.length === 1 ? "Fach angelegt" : picked.length + " Fächer angelegt"); return;
     }
     case "u-del-grade": { const us = uFind(el.dataset.id); if (!us) return; us.grades = us.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return; }
-    case "u-ask-del": ui.confirm = "udel-" + el.dataset.id; render(); return;
-    case "u-del-subject": ui.edit = null; state.ums.subjects = state.ums.subjects.filter(x => x.id !== el.dataset.id); ui.confirm = null; ui.uSel = null; ui.uOptSel = null; commit(); toast("Fach gelöscht"); return;
     case "copy-live-ask": ui.confirm = "copy-live"; render(); return;
     case "copy-live": copyFromLive(); return;
+    case "u-ask-del": ui.confirm = "udel-" + el.dataset.id; render(); return;
+    case "u-del-subject": ui.edit = null; state.ums.subjects = state.ums.subjects.filter(x => x.id !== el.dataset.id); ui.confirm = null; ui.uSel = null; ui.uOptSel = null; commit(); toast("Fach gelöscht"); return;
+
     case "edit-start":
       if (!ui.edit) { const k = el.dataset.key; ui.edit = { key: k, backup: k === "admin" ? JSON.stringify(ui.adminVault) : snapConfig() }; ui.confirm = null; ui.adminNew = null; ui.adminConfirmDel = null; }
       render(); return;
@@ -1749,7 +1828,19 @@ document.addEventListener("click", e => {
       try { navigator.clipboard.writeText(txt).then(() => toast("Code kopiert: " + txt), () => toast("Kopieren nicht möglich – Code: " + txt)); } catch (err) { toast("Code: " + txt); }
       return;
     }
-    case "logout": logout(); toast("Abgemeldet"); return;
+    case "logout": document.getElementById("logout-modal").hidden = false; document.querySelector('#logout-modal [data-action="logout-cancel"].btn').focus(); return;
+    case "logout-cancel": if (el.id === "logout-modal" && e.target !== el) return; document.getElementById("logout-modal").hidden = true; return;
+    case "logout-confirm": document.getElementById("logout-modal").hidden = true; logout(); toast("Abgemeldet"); return;
+    case "sec-open": ui.secNotice = null; ui.optSec = "sicherheit"; ui.optDetail = true; if (currentTab() !== "optionen") { location.hash = "optionen"; } else { render(); window.scrollTo(0, 0); } return;
+    case "opt-sec":
+      if (ui.edit && ui.optSec !== el.dataset.k) { toast("Speichere zuerst die laufende Bearbeitung."); return; }
+      if (ui.optSec !== el.dataset.k) { ui.confirm = null; ui.showAdd = false; }
+      ui.optSec = el.dataset.k; ui.optDetail = true; render(); window.scrollTo(0, 0); return;
+    case "opt-back": ui.optDetail = false; render(); window.scrollTo(0, 0); return;
+    case "sec-dismiss": ui.secNotice = null; render(); return;
+    case "cc-open": ui.secChange = true; ui.secErr = ""; render(); setTimeout(() => { const i = document.getElementById("cc-old"); if (i) i.focus(); }, 0); return;
+    case "cc-cancel": ui.secChange = false; ui.secErr = ""; render(); return;
+    case "cc-done": ui.newCode = null; render(); return;
     case "admin-auth-logout": adminSignOut().then(() => { render(); toast("Admin abgemeldet"); }); return;
     case "import-legacy": {
       if (!legacy) return;
@@ -1810,6 +1901,17 @@ document.addEventListener("submit", e => {
   ui.uLastCat = cat; ui.addGrade = null;
   commit(); toast("Note eingetragen");
 });
+document.addEventListener("submit", async e => {
+  if (e.target.id !== "code-change-form") return;
+  e.preventDefault();
+  if (ui.secBusy) return;
+  const old = document.getElementById("cc-old").value;
+  ui.secBusy = true; ui.secErr = ""; render();
+  try { await changeCode(old); ui.secChange = false; toast("Code geändert. Schreib dir den neuen Code auf."); }
+  catch (err) { ui.secErr = err && err.message ? err.message : "Ändern fehlgeschlagen."; }
+  ui.secBusy = false; render();
+  const x = document.getElementById("sicherheit"); if (x) x.scrollIntoView({ block: "start" });
+});
 document.addEventListener("submit", e => {
   if (e.target.id !== "grade-form") return;
   e.preventDefault();
@@ -1855,6 +1957,7 @@ document.addEventListener("change", e => {
   if (el.dataset.action === "override") { const s = findS(el.dataset.id); s.override[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); return; }
   if (el.dataset.action === "sem") { state.seminar[el.dataset.k] = el.value === "" ? null : +el.value; commit(); return; }
   if (el.dataset.action === "exam") { const ex = state.exams[+el.dataset.i], k = el.dataset.k; ex[k] = k === "points" || k === "zusatz" ? (el.value === "" ? null : +el.value) : (el.value || null); if (k === "art") ex.art = el.value; if (k === "subjectId" || k === "art") stage(el); else commit(); return; }
+  if (el.dataset.action === "os-year") { setOsYear(+el.value); commit(); return; }
   if (el.dataset.opt) { const k = el.dataset.opt; state.settings[k] = el.type === "checkbox" ? el.checked : (k === "currentHj" ? +el.value : el.value); if (["subst", "kumuLf", "labels"].includes(k)) stage(el); else commit(); return; }
   if (el.dataset.field) {
     const s = findS(el.dataset.id), f = el.dataset.field;
@@ -1867,7 +1970,7 @@ document.addEventListener("change", e => {
     stage(el);
   }
 });
-window.addEventListener("hashchange", () => { ui.confirm = null; render(); window.scrollTo(0, 0); });
+window.addEventListener("hashchange", () => { ui.confirm = null; if (currentTab() !== "optionen") ui.optDetail = false; render(); window.scrollTo(0, 0); });
 
 async function copyFromLive() {
   if (forecast) { toast("Verlasse zuerst den Prognosemodus."); return; }
@@ -1933,25 +2036,287 @@ async function encryptObj(key, obj) {
 async function decryptObj(key, p) { const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(p.iv) }, key, fromB64(p.ct)); return JSON.parse(TD.decode(pt)); }
 function normCode(c) { return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 
-async function login(code, remember) {
+async function login(code, remember, resumed) {
   const n = normCode(code);
   if (!window.crypto || !crypto.subtle) throw new Error("Die verschlüsselte Anmeldung braucht eine sichere Verbindung (https). Öffne den Notenmanager über seinen Link.");
   if (n.length !== 12) throw new Error("Ein Code hat 12 Zeichen, zum Beispiel ABCD-EFGH-JKMN.");
   const h = await sha256hex("nm-code:" + n);
   const listSrc = await fetchCodeList(true);
-  if (codeList.blocked.includes(h)) throw new Error("Dieser Code wurde gesperrt. Wende dich an die Person, die dir den Code gegeben hat.");
-  const idx = codeList.deleted.includes(h) ? -1 : CODE_HASHES.indexOf(h), extra = codeList.extra.find(x => x.h === h);
-  const nr = idx >= 0 ? idx + 1 : extra ? extra.nr : null;
-  if (nr == null) { const e = new Error(listSrc ? "Diesen Code gibt es nicht. Prüf die Schreibweise." : "Der Code konnte ohne Verbindung nicht geprüft werden. Versuch es mit Internet nochmal."); e.offline = !listSrc; throw e; }
   const docId = (await sha256hex("nm-doc-beta:" + n)).slice(0, 40);
   const liveDocId = (await sha256hex("nm-doc:" + n)).slice(0, 40);
+  const r = await resolveCode(h, listSrc === "server");
+  if (r === "moved") { removeLS(LS_PREFIX + docId); throw new Error("Dieser Code wurde geändert und gilt nicht mehr. Melde dich mit deinem neuen Code an."); }
+  if (r && r.chain.some(x => codeList.blocked.includes(x))) throw new Error("Dieser Code wurde gesperrt. Wende dich an die Person, die dir den Code gegeben hat.");
+  if (!r) { const e = new Error(listSrc ? "Diesen Code gibt es nicht. Prüf die Schreibweise." : "Der Code konnte ohne Verbindung nicht geprüft werden. Versuch es mit Internet nochmal."); e.offline = !listSrc; throw e; }
+  const nr = r.nr;
   const key = await deriveKey(n);
   let name = "";
-  if (codeList.names[h]) { try { name = String(await decryptObj(key, codeList.names[h]) || ""); } catch (e) {} }
-  session = { nr, docId, liveDocId, key, name, admin: nr === ADMIN_NR };
+  const encName = codeList.names[h] || r.name;
+  if (encName) { try { name = String(await decryptObj(key, encName) || ""); } catch (e) {} }
+  const logId = (await sha256hex("nm-log:" + n)).slice(0, 40);
+  session = { nr, docId, liveDocId, key, name, admin: nr === ADMIN_NR, code: n, h, logId };
   ui.adminVault = null; ui.adminLoading = false; ui.adminError = "";
+  ui.secLog = null; ui.secLogAt = 0; ui.secNotice = null; ui.secChange = false; ui.secErr = ""; ui.newCode = null;
   if (remember) writeLS(LS_SESSION, n); else removeLS(LS_SESSION);
   await openProfile();
+  recordLogin(session, resumed ? "open" : "login");
+}
+/* ================= Sicherheit: Anmeldeprotokoll und Code ändern ================= */
+// Protokoll: eigenes Dokument nm/{Prüfsumme}, mit dem Code verschlüsselt. Gespeichert werden Zeitpunkt,
+// eine zufällige Geräte-Kennung dieses Browsers und der Gerätetyp. Keine IP-Adressen.
+const LS_DEVICE = "notenmanager-device-v1", LS_SEEN = "notenmanager-seen-v1:", LS_ALIAS = "notenmanager-alias-v1";
+const LOG_MAX = 50, LOG_OPEN_GAP = 6 * 3600 * 1000;
+const LOG_KIND = { login: "Anmeldung", open: "geöffnet", change: "Code geändert" };
+function deviceId() {
+  let d = readLS(LS_DEVICE);
+  if (!d) { d = [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, "0")).join(""); writeLS(LS_DEVICE, d); }
+  return d;
+}
+function deviceLabel() {
+  const ua = navigator.userAgent || "";
+  const os = /Android/i.test(ua) ? "Android" : /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPhone/iPad" : /Windows/i.test(ua) ? "Windows" : /CrOS/.test(ua) ? "ChromeOS" : /Mac OS X|Macintosh/i.test(ua) ? "Mac" : /Linux/i.test(ua) ? "Linux" : "Unbekanntes System";
+  const br = /Edg\//.test(ua) ? "Edge" : /OPR\/|Opera/.test(ua) ? "Opera" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Firefox\/|FxiOS/.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Browser";
+  let app = false; try { app = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) {}
+  return os + ", " + br + (app ? " (App)" : "");
+}
+function fmtDT(t) { return new Date(t).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); }
+// Dokument lesen: Daten, null (gibt es nicht) oder undefined (unbekannt, z. B. offline oder nicht erlaubt)
+async function lookupDoc(path) {
+  const d = await withTimeout(getDb(), 10000);
+  if (!d) return undefined;
+  try { const s = await withTimeout(d.doc(path).get(), 8000); if (!s) return undefined; return s.exists ? s.data() : null; }
+  catch (e) { return undefined; }
+}
+// Code-Prüfsumme auflösen: direkt in der Codeliste oder über Verweise geänderter Codes.
+// Ergebnis: { nr, chain, name } , "moved" (Code wurde geändert) oder null (unbekannt)
+async function resolveCode(h, online) {
+  if (online && await lookupDoc("nm-moves/" + h)) return "moved";
+  const chain = [h];
+  let cur = h, name = null;
+  for (let i = 0; i < 25; i++) {
+    const idx = codeList.deleted.includes(cur) ? -1 : CODE_HASHES.indexOf(cur), extra = codeList.extra.find(x => x.h === cur);
+    const nr = idx >= 0 ? idx + 1 : extra ? extra.nr : null;
+    if (nr != null) {
+      const r = { nr, chain, name };
+      if (chain.length > 1) { try { const c = JSON.parse(readLS(LS_ALIAS) || "{}"); c[h] = { nr, chain, name }; writeLS(LS_ALIAS, JSON.stringify(c)); } catch (e) {} }
+      return r;
+    }
+    if (!online) break;
+    const al = await lookupDoc("nm-alias/" + cur);
+    if (!al || typeof al.from !== "string") return null;
+    if (i === 0 && al.name) name = al.name;
+    cur = al.from; chain.push(cur);
+  }
+  if (!online) { try { const c = JSON.parse(readLS(LS_ALIAS) || "{}")[h]; if (c && c.nr) return c; } catch (e) {} }
+  return null;
+}
+async function readLog(my) {
+  const x = await lookupDoc("nm/" + my.logId);
+  if (x === undefined) return undefined;
+  if (!x || !x.ct) return [];
+  try { const o = await decryptObj(my.key, x); return Array.isArray(o.entries) ? o.entries : []; } catch (e) { return []; }
+}
+async function writeLog(my, logId, key, entries) {
+  const d = await getDb(); if (!d) throw new Error("offline");
+  const p = await encryptObj(key, { entries });
+  await d.doc("nm/" + logId).set({ v: 1, updatedAt: Date.now(), iv: p.iv, ct: p.ct });
+}
+// Bei jeder Anmeldung: Eintrag schreiben (beim bloßen Öffnen höchstens alle 6 Stunden) und
+// prüfen, ob sich seit dem letzten Besuch ein anderes Gerät angemeldet hat.
+async function recordLogin(my, kind) {
+  let entries = await readLog(my);
+  if (entries === undefined || session !== my) return;
+  const me = deviceId(), now = Date.now(), seenKey = LS_SEEN + my.logId;
+  const seen = +readLS(seenKey) || 0;
+  const others = seen ? entries.filter(x => x.d !== me && x.t > seen && x.k !== "open") : [];
+  const lastMine = entries.filter(x => x.d === me).reduce((m, x) => Math.max(m, x.t || 0), 0);
+  if (kind === "login" || now - lastMine > LOG_OPEN_GAP) {
+    entries = entries.concat({ t: now, d: me, l: deviceLabel(), k: kind }).slice(-LOG_MAX);
+    try { await writeLog(my, my.logId, my.key, entries); } catch (e) {}
+  }
+  writeLS(seenKey, String(now));
+  if (session !== my) return;
+  ui.secLog = entries; ui.secLogAt = now;
+  if (others.length) ui.secNotice = others;
+  render();
+}
+async function refreshLog() {
+  const my = session;
+  if (!my || ui.secLogBusy) return;
+  ui.secLogBusy = true;
+  const entries = await readLog(my);
+  ui.secLogBusy = false;
+  if (session !== my) return;
+  ui.secLogAt = Date.now();
+  if (entries !== undefined) { ui.secLog = entries; ui.secLogErr = false; } else ui.secLogErr = true;
+  writeLS(LS_SEEN + my.logId, String(Date.now()));
+  if (currentTab() === "optionen" && !ui.edit) render();
+}
+// Profil-Dokument ist verschwunden: wurde der Code anderswo geändert oder gelöscht?
+async function checkStillValid(my) {
+  if (session !== my || my.checking) return;
+  my.checking = true;
+  const src = await fetchCodeList();
+  if (session !== my) return;
+  const r = src === "server" ? await resolveCode(my.h, true) : true;
+  my.checking = false;
+  if (session !== my || (r && r !== "moved")) return;
+  noWrite = true;
+  removeLS(LS_PREFIX + my.docId);
+  logout();
+  ui.loginError = r === "moved" ? "Dein Code wurde auf einem anderen Gerät geändert. Melde dich mit dem neuen Code an." : "Dein Code gilt nicht mehr. Wende dich an die Person, die dir den Code gegeben hat.";
+  render();
+}
+function secBar() {
+  const n = ui.secNotice;
+  if (!n || !n.length) return "";
+  const last = n[n.length - 1];
+  return '<div class="sec-bar" role="alert"><div><b>Anmeldung auf einem anderen Gerät</b><span class="small">Seit deinem letzten Besuch ' + (n.length > 1 ? "gab es " + n.length + " Anmeldungen von anderen Geräten, zuletzt " : "hat sich ein anderes Gerät angemeldet: ") + esc(last.l || "unbekanntes Gerät") + ", " + fmtDT(last.t) + '. Warst du das nicht? Dann ändere deinen Code.</span></div>' +
+    '<div class="actions"><button class="btn sm" data-action="sec-open">Ansehen</button><button class="btn sm" data-action="sec-dismiss">Das war ich</button></div></div>';
+}
+function viewSecurity() {
+  if (!ui.secLogBusy && (!ui.secLog || Date.now() - (ui.secLogAt || 0) > 60000)) setTimeout(refreshLog, 0);
+  const me = deviceId();
+  let h = '<section class="card" id="sicherheit"><div class="card-head"><div><h2>Dein Code</h2><span class="muted small">Wer hat sich mit deinem Code angemeldet?</span></div></div>';
+  if (ui.newCode) h += '<div class="need" style="margin-bottom:16px;border:1px solid var(--accent)"><div class="small">Dein neuer Code</div><div class="actions" style="margin:6px 0"><span class="code-box">' + fmtCode(ui.newCode) + '</span><button class="btn sm" data-action="copy-code" data-code="' + fmtCode(ui.newCode) + '">Kopieren</button></div>' +
+    '<p class="small" style="margin:0 0 8px">Schreib ihn dir jetzt auf. Ohne ihn kommst du nicht mehr an deine Noten. Der alte Code gilt nicht mehr, auf deinen anderen Geräten meldest du dich mit dem neuen Code neu an.</p><button class="btn primary sm" data-action="cc-done">Ich habe den Code notiert</button></div>';
+  h += '<h3 style="margin:0 0 8px;font-size:1rem">Letzte Anmeldungen</h3>';
+  const log = (ui.secLog || []).slice().sort((a, b) => b.t - a.t).slice(0, 15);
+  if (!ui.secLog) h += '<p class="muted small">' + (ui.secLogErr ? "Ohne Verbindung nicht verfügbar." : "Wird geladen …") + "</p>";
+  else if (!log.length) h += '<p class="muted small">Noch keine Anmeldungen aufgezeichnet.</p>';
+  else {
+    h += '<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Zeitpunkt</th><th>Gerät</th><th>Art</th></tr></thead><tbody>';
+    for (const x of log) h += '<tr><td class="small" style="white-space:nowrap">' + fmtDT(x.t) + "</td><td>" + esc(x.l || "unbekannt") + (x.d === me ? ' <span class="badge abi">dieses Gerät</span>' : "") + '</td><td class="small">' + esc(LOG_KIND[x.k] || x.k || "") + "</td></tr>";
+    h += "</tbody></table></div>";
+  }
+  h += '<p class="muted small" style="margin:10px 0 18px">Kennst du eine Anmeldung nicht, ändere deinen Code. Gespeichert werden nur Zeitpunkt und Gerätetyp, verschlüsselt mit deinem Code, keine IP-Adressen. „Geöffnet“ heißt: Das Gerät war schon angemeldet und hat die App wieder geöffnet. Ein Gerät gilt als dasselbe, solange du im selben Browser bleibst.</p>';
+  h += '<h3 style="margin:0 0 8px;font-size:1rem">Code ändern</h3>';
+  if (true) h += '<p class="small" style="margin:0">In der Beta nicht möglich. Ändere deinen Code in der <a href="../#optionen" style="color:var(--accent)">normalen Version</a>.</p>';
+  else if (ui.secChange) {
+    h += '<form id="code-change-form" class="grid" style="gap:12px;max-width:420px"><p class="small" style="margin:0">Du bekommst einen neuen, zufälligen Code. Deine Noten werden damit neu verschlüsselt, der alte Code ist danach wertlos und alle anderen Geräte sind abgemeldet.</p>' +
+      '<label class="field"><span>Zur Bestätigung: dein aktueller Code</span><input type="text" id="cc-old" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></label>' +
+      (ui.secErr ? '<p class="small" style="color:var(--bad);margin:0">' + esc(ui.secErr) + "</p>" : "") +
+      '<div class="actions"><button class="btn primary" type="submit"' + (ui.secBusy ? " disabled" : "") + ">" + (ui.secBusy ? "Ändere …" : "Code jetzt ändern") + '</button><button class="btn" type="button" data-action="cc-cancel"' + (ui.secBusy ? " disabled" : "") + ">Abbrechen</button></div></form>";
+  } else {
+    h += '<p class="small" style="margin:0 0 10px">Wenn jemand anderes deinen Code kennen könnte: Du bekommst einen neuen Code, der alte funktioniert danach nicht mehr.' + (session && session.admin ? " Als Admin musst du dafür im Admin-Bereich mit deinem Admin-Konto angemeldet sein." : "") + '</p><button class="btn" data-action="cc-open">Code ändern</button>';
+  }
+  h += '<p class="muted small" style="margin:18px 0 0">Grenzen: Der Notenmanager hat keinen eigenen Server. Das Protokoll schützt im normalen Fall. Wer deinen Code kennt und sich technisch gut auskennt, kann es umgehen. Gib deinen Code deshalb niemandem weiter.</p></section>';
+  return h;
+}
+// Admin-Schlüsselpaar (ECDH P-256): der öffentliche Teil steht in der Codeliste, der private Teil
+// liegt dort verschlüsselt mit dem Admin-Code. Nutzer hinterlegen damit ihren neuen Code nur für den Admin lesbar.
+const ECDH_ALG = { name: "ECDH", namedCurve: "P-256" };
+let adminKeys = null; // { pub: {x, y}, priv: JWK }
+async function loadAdminKeys(my) {
+  if (!my || !my.admin) return;
+  if (codeList.priv && codeList.pub) { try { adminKeys = { pub: codeList.pub, priv: await decryptObj(my.key, codeList.priv) }; } catch (e) { adminKeys = null; } }
+}
+async function genAdminKeys() {
+  const kp = await crypto.subtle.generateKey(ECDH_ALG, true, ["deriveKey"]);
+  const priv = await crypto.subtle.exportKey("jwk", kp.privateKey), pub = await crypto.subtle.exportKey("jwk", kp.publicKey);
+  adminKeys = { pub: { x: pub.x, y: pub.y }, priv };
+}
+// Nach dem Laden der Codeliste: fehlendes Schlüsselpaar anlegen bzw. übernommene Code-Änderungen speichern
+async function adminKeyUpkeep(changed) {
+  if (!isFbAdmin() || !ui.adminVault) return;
+  let need = !!changed;
+  if (!adminKeys) { await genAdminKeys(); need = true; }
+  if (need) { try { await saveCodeList(); } catch (e) {} }
+}
+async function sealForAdmin(text, pub) {
+  const pk = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: pub.x, y: pub.y, ext: true }, ECDH_ALG, false, []);
+  const eph = await crypto.subtle.generateKey(ECDH_ALG, true, ["deriveKey"]);
+  const k = await crypto.subtle.deriveKey({ name: "ECDH", public: pk }, eph.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const p = await encryptObj(k, text), e = await crypto.subtle.exportKey("jwk", eph.publicKey);
+  return { x: e.x, y: e.y, iv: p.iv, ct: p.ct };
+}
+async function unsealAdmin(s) {
+  const priv = await crypto.subtle.importKey("jwk", adminKeys.priv, ECDH_ALG, false, ["deriveKey"]);
+  const pk = await crypto.subtle.importKey("jwk", { kty: "EC", crv: "P-256", x: s.x, y: s.y, ext: true }, ECDH_ALG, false, []);
+  const k = await crypto.subtle.deriveKey({ name: "ECDH", public: pk }, priv, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  return decryptObj(k, s);
+}
+// Admin: Codes, die Nutzer selbst geändert haben, in die Codeliste übernehmen. Gibt true zurück, wenn sich etwas geändert hat.
+async function foldMoves(entries) {
+  let changed = false;
+  await Promise.all(entries.map(async e => {
+    let code = e.code, h = e.h, unknown = false;
+    for (let i = 0; i < 20; i++) {
+      const mv = await lookupDoc("nm-moves/" + h);
+      if (!mv) break;
+      let c2 = null;
+      if (mv.sealed && adminKeys) { try { c2 = normCode(await unsealAdmin(mv.sealed)); } catch (x) {} }
+      if (!c2 || (await sha256hex("nm-code:" + c2)) !== mv.to) { unknown = true; break; }
+      code = c2; h = mv.to;
+    }
+    if (code !== e.code) { e.code = code; e.h = h; if (e.name) e.nameDirty = true; if (codeList.blocked.includes(h)) e.blocked = true; changed = true; }
+    e.moved = unknown;
+  }));
+  return changed;
+}
+function waitIdle(ms) { return new Promise(res => { const t0 = Date.now(); (function w() { if (!writing || Date.now() - t0 > ms) res(); else setTimeout(w, 100); })(); }); }
+async function changeCode(confirmCode) {
+  const my = session;
+  if (!my) throw new Error("Nicht angemeldet.");
+  if (normCode(confirmCode) !== my.code) throw new Error("Das ist nicht dein aktueller Code. Prüf die Schreibweise.");
+  if (forecast) throw new Error("Verlasse zuerst den Prognosemodus.");
+  if (ui.edit) throw new Error("Speichere oder verwirf zuerst die laufende Bearbeitung.");
+  const d = await withTimeout(getDb(), 10000);
+  if (!d || navigator.onLine === false || !docRef || !serverSeen || noWrite) throw new Error("Zum Ändern brauchst du eine Internetverbindung. Warte, bis oben „Auf allen Geräten gespeichert“ steht, und versuch es nochmal.");
+  if (my.admin && !isFbAdmin()) throw new Error("Melde dich zuerst im Admin-Bereich mit deinem Admin-Konto an. Dein Admin-Code verschlüsselt die Codeliste und kann nur dort neu verschlüsselt werden.");
+  // Noch ausstehende Änderungen zuerst speichern
+  if (remoteTimer) { clearTimeout(remoteTimer); remoteTimer = null; }
+  await waitIdle(10000); await flush(); await waitIdle(10000);
+  if ((await fetchCodeList()) !== "server") throw new Error("Die Codeliste konnte nicht geladen werden. Versuch es nochmal.");
+  if (my.admin) { if (!ui.adminVault) await loadAdminVault(); if (!ui.adminVault) throw new Error("Die Codeliste konnte nicht entschlüsselt werden."); if (!adminKeys) await genAdminKeys(); }
+  if (session !== my) throw new Error("Abgebrochen.");
+  const n2 = randomCodeStr(), h2 = await sha256hex("nm-code:" + n2);
+  const docId2 = (await sha256hex("nm-doc:" + n2)).slice(0, 40), logId2 = (await sha256hex("nm-log:" + n2)).slice(0, 40);
+  const key2 = await deriveKey(n2), now = Date.now();
+  const st = JSON.parse(JSON.stringify(realState()));
+  const oldLog = await readLog(my);
+  const entries = (oldLog || ui.secLog || []).concat({ t: now, d: deviceId(), l: deviceLabel(), k: "change" }).slice(-LOG_MAX);
+  // 1. Noten und Protokoll mit dem neuen Code verschlüsselt ablegen
+  const p = await encryptObj(key2, st);
+  try {
+    await d.doc("nm/" + docId2).set({ v: 1, updatedAt: st.updatedAt || 0, iv: p.iv, ct: p.ct });
+    await writeLog(my, logId2, key2, entries);
+  } catch (err) { throw new Error("Speichern fehlgeschlagen. Dein bisheriger Code gilt weiter."); }
+  // 2. Alten Code entwerten
+  try {
+    if (my.admin) {
+      const me = ui.adminVault.find(e => e.nr === my.nr);
+      const back = { code: me.code, h: me.h };
+      me.code = n2; me.h = h2; if (me.name) me.nameDirty = true;
+      try { await saveCodeList(key2); } catch (err) { me.code = back.code; me.h = back.h; throw err; }
+    } else {
+      const sealed = codeList.pub ? await sealForAdmin(n2, codeList.pub) : null;
+      const name = my.name ? await encryptObj(key2, my.name) : null;
+      await d.batchSet([
+        { path: "nm-moves/" + my.h, data: { v: 1, old: my.code, to: h2, at: now, sealed } },
+        { path: "nm-alias/" + h2, data: { v: 1, from: my.h, name, at: now } }
+      ]);
+    }
+  } catch (err) {
+    try { await d.doc("nm/" + docId2).delete(); await d.doc("nm/" + logId2).delete(); } catch (x) {}
+    if (err && err.code === "invalid_argument") throw new Error("Code ändern ist noch nicht freigeschaltet. Bitte den Admin, die neuen Firebase-Regeln einzuspielen. Dein bisheriger Code gilt weiter.");
+    throw new Error((err && err.message && my.admin ? err.message + " " : "Ändern fehlgeschlagen. ") + "Dein bisheriger Code gilt weiter.");
+  }
+  // 3. Sync vom alten Profil trennen, alte Daten entfernen und auf den neuen Code umstellen
+  if (unsub) { try { unsub(); } catch (x) {} unsub = null; }
+  clearTimeout(snapTimer); docRef = null; serverSeen = false;
+  try { await d.doc("nm/" + my.docId).delete(); } catch (x) {}
+  try { await d.doc("nm/" + my.logId).delete(); } catch (x) {}
+  removeLS(LS_PREFIX + my.docId); removeLS(LS_SEEN + my.logId);
+  const next = Object.assign({}, my, { code: n2, h: h2, docId: docId2, logId: logId2, key: key2, docSeen: false, checking: false });
+  session = next;
+  if (readLS(LS_SESSION)) writeLS(LS_SESSION, n2);
+  writeLS(LS_SEEN + logId2, String(now));
+  await fetchCodeList();
+  saveLocal();
+  ui.secLog = entries; ui.secLogAt = now; ui.secNotice = null; ui.newCode = n2;
+  connectSync(next);
+  return n2;
 }
 /* ================= Admin: Codes verwalten (nur Profil 1) ================= */
 const ADMIN_NR = 1, CODES_DOC = "nm-codes/list", CODE_ALPHA = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -1992,7 +2357,9 @@ async function fetchCodeListServer() {
       blocked: Array.isArray(x.blocked) ? x.blocked.slice() : [],
       deleted: Array.isArray(x.deleted) ? x.deleted.slice() : [],
       names: x.names && typeof x.names === "object" ? JSON.parse(JSON.stringify(x.names)) : {},
-      vault: x.vault ? { iv: x.vault.iv, ct: x.vault.ct } : null
+      vault: x.vault ? { iv: x.vault.iv, ct: x.vault.ct } : null,
+      pub: x.pub && x.pub.x && x.pub.y ? { x: x.pub.x, y: x.pub.y } : null,
+      priv: x.priv && x.priv.ct ? { iv: x.priv.iv, ct: x.priv.ct } : null
     };
     return true;
   } catch (e) { return false; }
@@ -2015,7 +2382,11 @@ async function loadAdminVault() {
   if (session !== my) return;
   await getAuthApi();
   if (entries) await migrateCodesIfNeeded();
+  await loadAdminKeys(my);
+  const folded = entries ? await foldMoves(entries) : false;
+  if (session !== my) return;
   ui.adminVault = entries; ui.adminLoading = false; ui.adminSeen = {};
+  if (entries) await adminKeyUpkeep(folded);
   render();
   // Wann wurde welches Profil zuletzt gespeichert? (nur Zeitstempel, die Noten bleiben verschlüsselt)
   const d = await getDb();
@@ -2028,15 +2399,17 @@ async function loadAdminVault() {
   }));
   if (session === my && currentTab() === "admin" && !editing("admin")) render();
 }
-async function saveCodeList() {
+async function saveCodeList(keyOverride) {
   const d = await getDb();
   if (!d) throw new Error("Keine Verbindung zur Datenbank. Versuch es später nochmal.");
   await getAuthApi();
   if (!isFbAdmin()) throw new Error("Melde dich zuerst oben im Admin-Bereich mit deinem Admin-Konto an.");
   const list = ui.adminVault.map(({ nr, code, name, note, created, blocked }) => ({ nr, code, name: name || "", note: note || "", created: created || null, blocked: !!blocked }));
-  const vault = await encryptObj(session.key, list);
+  const adminKey = keyOverride || session.key;
+  const vault = await encryptObj(adminKey, list);
   const blocked = ui.adminVault.filter(e => e.blocked && e.nr !== ADMIN_NR).map(e => e.h);
-  const extra = ui.adminVault.filter(e => e.nr > 20).map(e => ({ h: e.h, nr: e.nr }));
+  // Neue Codes und geänderte Startcodes stehen mit ihrer Prüfsumme in extra
+  const extra = ui.adminVault.filter(e => e.nr > 20 || e.h !== CODE_HASHES[e.nr - 1]).map(e => ({ h: e.h, nr: e.nr }));
   // Namen mit dem Code der jeweiligen Person verschlüsseln (nur geänderte neu berechnen)
   const names = {};
   for (const e of ui.adminVault) {
@@ -2044,9 +2417,14 @@ async function saveCodeList() {
     names[e.h] = (!e.nameDirty && codeList.names[e.h]) ? codeList.names[e.h] : await encryptObj(await deriveKey(e.code), e.name);
   }
   const deleted = (codeList.deleted || []).slice();
-  try { await d.doc(CODES_DOC).set({ v: 1, updatedAt: Date.now(), extra, blocked, deleted, names, vault }); }
+  // Geänderter Startcode: der alte Code gilt nicht mehr
+  for (const e of ui.adminVault) if (e.nr <= 20 && e.h !== CODE_HASHES[e.nr - 1] && !deleted.includes(CODE_HASHES[e.nr - 1])) deleted.push(CODE_HASHES[e.nr - 1]);
+  // Schlüsselpaar, mit dem Nutzer beim Code ändern ihren neuen Code für den Admin hinterlegen
+  const pub = adminKeys ? adminKeys.pub : codeList.pub || null;
+  const priv = adminKeys ? await encryptObj(adminKey, adminKeys.priv) : codeList.priv || null;
+  try { await d.doc(CODES_DOC).set({ v: 1, updatedAt: Date.now(), extra, blocked, deleted, names, vault, pub, priv }); }
   catch (err) { throw new Error(err && err.code === "invalid_argument" ? "Keine Berechtigung. Melde dich oben im Admin-Bereich erneut an." : "Speichern fehlgeschlagen. Versuch es nochmal."); }
-  codeList = { extra, blocked, deleted, names, vault };
+  codeList = { extra, blocked, deleted, names, vault, pub, priv };
   ui.adminVault.forEach(e => { delete e.nameDirty; });
   const me = ui.adminVault.find(e => e.nr === session.nr);
   if (me) { session.name = me.name || ""; updateHeader(); }
@@ -2058,10 +2436,14 @@ async function deleteCode(nr) {
   const [entry] = ui.adminVault.splice(i, 1);
   const prevDeleted = (codeList.deleted || []).slice();
   if (nr <= 20 && !codeList.deleted.includes(entry.h)) codeList.deleted.push(entry.h);
+  if (nr <= 20 && !codeList.deleted.includes(CODE_HASHES[nr - 1])) codeList.deleted.push(CODE_HASHES[nr - 1]);
   try { await saveCodeList(); }
   catch (err) { ui.adminVault.splice(i, 0, entry); codeList.deleted = prevDeleted; throw err; }
   const d = await getDb();
-  if (d) { try { await d.doc("nm/" + (await sha256hex("nm-doc:" + entry.code)).slice(0, 40)).delete(); } catch (e) {} }
+  if (d) {
+    try { await d.doc("nm/" + (await sha256hex("nm-doc:" + entry.code)).slice(0, 40)).delete(); } catch (e) {}
+    try { await d.doc("nm/" + (await sha256hex("nm-log:" + entry.code)).slice(0, 40)).delete(); } catch (e) {}
+  }
   if (ui.adminSeen) delete ui.adminSeen[nr];
   return entry;
 }
@@ -2147,7 +2529,8 @@ async function parseCodesBackup(txt) {
     const nr = +(c && c.profil), code = normCode(c && c.code);
     if (!Number.isInteger(nr) || nr < 1 || code.length !== 12 || seen.has(nr) || entries.some(e => e.code === code)) throw new Error("Das Codes-Backup ist beschädigt (Profil " + (c && c.profil) + ").");
     const h = await sha256hex("nm-code:" + code);
-    if (nr <= 20 && CODE_HASHES[nr - 1] !== h) throw new Error("Der Code von Profil " + nr + " passt nicht zu diesem Notenmanager.");
+    // Ein Startcode darf durch „Code ändern“ ersetzt worden sein, aber nicht der Startcode eines anderen Profils sein
+    if (nr <= 20 && CODE_HASHES[nr - 1] !== h && CODE_HASHES.includes(h)) throw new Error("Der Code von Profil " + nr + " passt nicht zu diesem Notenmanager.");
     if (nr > 20 && CODE_HASHES.includes(h)) throw new Error("Das Codes-Backup ist beschädigt (Profil " + nr + ").");
     seen.add(nr);
     entries.push({ nr, code, h, name: String(c.name || "").slice(0, 40), note: String(c.notiz || "").slice(0, 200), created: +c.erstellt || null, blocked: nr !== ADMIN_NR && c.status === "gesperrt" });
@@ -2258,7 +2641,7 @@ function viewAdmin() {
       "<td>" + (ed ? '<input type="text" id="admin-name-' + e.nr + '" data-action="admin-name" data-nr="' + e.nr + '" value="' + esc(e.name) + '" maxlength="40" placeholder="Profil ' + e.nr + '" style="min-width:130px">' : (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + e.nr + "</span>")) + "</td>" +
       '<td><span class="num" style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + '</span> <button class="btn ghost sm" data-action="copy-code" data-code="' + fmtCode(e.code) + '" aria-label="Code kopieren">Kopieren</button></td>' +
       "<td>" + (ed ? '<input type="text" id="admin-note-' + e.nr + '" data-action="admin-note" data-nr="' + e.nr + '" value="' + esc(e.note) + '" maxlength="80" style="min-width:150px">' : (e.note ? esc(e.note) : '<span class="muted">–</span>')) + "</td>" +
-      "<td>" + (isAdm ? '<span class="muted small">immer aktiv</span>' : ed ? '<label class="check"><input type="checkbox" id="admin-block-' + e.nr + '" data-action="admin-block" data-nr="' + e.nr + '"' + (e.blocked ? " checked" : "") + "> gesperrt</label>" : (e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>')) + "</td>" +
+      "<td>" + (e.moved ? '<span class="badge" style="background:var(--warn-soft);color:var(--warn)" title="Die Person hat ihren Code geändert, bevor der Admin-Schlüssel eingerichtet war. Der angezeigte Code gilt nicht mehr.">Code geändert, neuer Code unbekannt</span> ' : "") + (isAdm ? '<span class="muted small">immer aktiv</span>' : ed ? '<label class="check"><input type="checkbox" id="admin-block-' + e.nr + '" data-action="admin-block" data-nr="' + e.nr + '"' + (e.blocked ? " checked" : "") + "> gesperrt</label>" : (e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>')) + "</td>" +
       '<td class="small">' + (seen[e.nr] ? new Date(seen[e.nr]).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : '<span class="muted">noch nie</span>') + "</td>" +
       (ed ? "" : "<td>" + (isAdm ? "" : askDel
         ? '<div class="actions" style="flex-wrap:nowrap"><span class="small" style="white-space:nowrap">Mit allen Noten endgültig löschen?</span><button class="btn danger solid sm" data-action="admin-delete" data-nr="' + e.nr + '"' + (ui.adminBusy ? " disabled" : "") + '>Ja, löschen</button><button class="btn sm" data-action="admin-delete-cancel">Abbrechen</button></div>'
@@ -2276,7 +2659,8 @@ function logout() {
   removeLS(LS_SESSION);
   if (fbUser) adminSignOut();
   forecast = null; state = defaultState(); ui.edit = null; ui.confirm = null; ui.selected = null; ui.loginError = "";
-  ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null; ui.bkData = null; ui.bkCodes = null; ui.bkBusy = null;
+  ui.adminVault = null; ui.adminLoading = false; ui.adminError = ""; ui.adminSeen = null; ui.bkData = null; ui.bkCodes = null; ui.bkBusy = null; adminKeys = null;
+  ui.secLog = null; ui.secLogAt = 0; ui.secNotice = null; ui.secChange = false; ui.secErr = ""; ui.newCode = null; ui.secBusy = false;
   if (location.hash) location.hash = "";
   updateHeader(); render();
 }
@@ -2302,7 +2686,7 @@ document.addEventListener("submit", async e => {
   e.preventDefault();
   const email = document.getElementById("admin-auth-email").value.trim(), pw = document.getElementById("admin-auth-pw").value;
   ui.adminAuthBusy = true; ui.adminAuthError = ""; render();
-  try { await adminSignIn(email, pw); await fetchCodeList(); await migrateCodesIfNeeded(); ui.adminAuthBusy = false; render(); toast("Als Admin angemeldet"); }
+  try { await adminSignIn(email, pw); await fetchCodeList(); await migrateCodesIfNeeded(); if (ui.adminVault) { await loadAdminKeys(session); await adminKeyUpkeep(await foldMoves(ui.adminVault)); } ui.adminAuthBusy = false; render(); toast("Als Admin angemeldet"); }
   catch (err) { ui.adminAuthBusy = false; ui.adminAuthError = err.message; render(); const i = document.getElementById("admin-auth-email"); if (i) i.value = email; }
 });
 document.addEventListener("submit", async e => {
@@ -2357,6 +2741,12 @@ function getDb() {
           delete: () => fs.deleteDoc(ref).catch(e => { throw fbErr(e); }),
           onSnapshot: (next, err) => fs.onSnapshot(ref, { includeMetadataChanges: true }, sn => next(wrap(sn)), e => err && err(fbErr(e)))
         };
+      },
+      // Mehrere Dokumente gemeinsam anlegen (alles oder nichts)
+      batchSet(items) {
+        const b = fs.writeBatch(db);
+        for (const it of items) b.set(fs.doc(db, it.path), it.data);
+        return b.commit().catch(e => { throw fbErr(e); });
       }
     };
   })().catch(e => { dbP = null; return null; });
@@ -2415,6 +2805,8 @@ async function connectSync(my) {
   snapTimer = setTimeout(() => { if (session === my && !serverSeen) setSync("offline"); }, 10000);
   unsub = docRef.onSnapshot(async snap => {
     if (session !== my || snap.metadata.hasPendingWrites) return;
+    if (!snap.exists && !snap.metadata.fromCache && serverSeen && my.docSeen) { checkStillValid(my); return; }
+    if (snap.exists && !snap.metadata.fromCache) my.docSeen = true;
     const mig = !snap.exists && !snap.metadata.fromCache ? MIGRATION_DOCS[my.docId] || null : null;
     const data = snap.exists ? snap.data() : mig;
     const remoteAt = data && typeof data.updatedAt === "number" ? data.updatedAt : 0;
@@ -2473,7 +2865,7 @@ async function flush() {
 // Start: gemerkten Code verwenden oder Anmeldung zeigen
 (async () => {
   const saved = readLS(LS_SESSION);
-  if (saved) { try { await login(saved, true); return; } catch (e) { if (!e || !e.offline) removeLS(LS_SESSION); } }
+  if (saved) { try { await login(saved, true, true); return; } catch (e) { if (!e || !e.offline) removeLS(LS_SESSION); } }
   updateHeader(); render();
 })();
 
