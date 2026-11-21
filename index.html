@@ -169,6 +169,9 @@ tfoot td { font-weight: 700; border-bottom: none; }
 .fc-bar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); border: 1px dashed var(--warn); }
 .fc-bar > div { display: flex; flex-direction: column; gap: 2px; }
 body.forecast #app { outline: 2px dashed var(--warn); outline-offset: 6px; border-radius: 12px; }
+.site-foot p { margin: 0 0 6px; }
+.site-foot summary { cursor: pointer; font-weight: 600; width: fit-content; }
+.site-foot details[open] summary { margin-bottom: 6px; }
 .site-foot { margin-top: 40px; padding-top: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); font-size: .72rem; line-height: 1.5; color: var(--muted); opacity: .8; }
 .edit-note { font-size: .82rem; color: var(--accent); font-weight: 600; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin: 0; }
@@ -256,7 +259,14 @@ details.settings[open] > summary { margin-bottom: 12px; }
   </div>
 </header>
 <main class="wrap" id="app"></main>
-<footer class="wrap site-foot">Alle Berechnungen ohne Gewähr. Der Notenmanager ist ein privates Hilfsmittel und kann Fehler enthalten. Maßgeblich sind allein die Angaben deiner Schule und die GSO. Lade unter Optionen regelmäßig ein Backup herunter, damit keine Daten verloren gehen. Für Richtigkeit, Vollständigkeit und Verfügbarkeit der Daten und Berechnungen wird keine Haftung übernommen.</footer>
+<footer class="wrap site-foot">
+  <p>Alle Berechnungen ohne Gewähr. Der Notenmanager ist ein privates Hilfsmittel und kann Fehler enthalten. Maßgeblich sind allein die Angaben deiner Schule und die GSO. Lade unter Optionen regelmäßig ein Backup herunter, damit keine Daten verloren gehen. Für Richtigkeit, Vollständigkeit und Verfügbarkeit der Daten und Berechnungen wird keine Haftung übernommen.</p>
+  <details><summary>Datenschutz</summary>
+    <p>Gespeichert werden deine Fächer und Noten sowie der Name, den der Admin deinem Code gibt. Beides wird schon auf deinem Gerät mit deinem Anmeldecode verschlüsselt und nur verschlüsselt übertragen. Lesen kann es nur, wer deinen Code kennt: du und der Admin, der die Codes vergibt. Der Betreiber der Datenbank sieht nur verschlüsselte Daten. Zusätzlich liegt eine verschlüsselte Kopie im Speicher deines Browsers.</p>
+    <p>Die verschlüsselten Daten liegen in Google Firebase (Cloud Firestore, Rechenzentren in der EU). Die Seite wird über GitHub Pages ausgeliefert, Schriftarten kommen von Google Fonts. Dabei verarbeiten GitHub und Google technisch bedingt deine IP-Adresse und Browserdaten. Es gibt keine Werbung, kein Tracking und keine Weitergabe an Dritte.</p>
+    <p>Wenn deine Daten gelöscht werden sollen, wende dich an die Person, von der du deinen Code hast. Dann werden Code und Profil entfernt. Mit der Nutzung nimmst du diese Hinweise zur Kenntnis.</p>
+  </details>
+</footer>
 <div class="toast" id="toast" hidden></div>
 
 <script>
