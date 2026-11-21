@@ -169,6 +169,7 @@ tfoot td { font-weight: 700; border-bottom: none; }
 .fc-bar { position: sticky; top: 8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px; background: var(--warn-soft); color: var(--warn); border: 1px dashed var(--warn); }
 .fc-bar > div { display: flex; flex-direction: column; gap: 2px; }
 body.forecast #app { outline: 2px dashed var(--warn); outline-offset: 6px; border-radius: 12px; }
+.site-foot { margin-top: 40px; padding-top: 14px; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); font-size: .72rem; line-height: 1.5; color: var(--muted); opacity: .8; }
 .edit-note { font-size: .82rem; color: var(--accent); font-weight: 600; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin: 0; }
 .kv div { min-width: 0; }
@@ -255,6 +256,7 @@ details.settings[open] > summary { margin-bottom: 12px; }
   </div>
 </header>
 <main class="wrap" id="app"></main>
+<footer class="wrap site-foot">Alle Berechnungen ohne Gewähr. Der Notenmanager ist ein privates Hilfsmittel und kann Fehler enthalten. Maßgeblich sind allein die Angaben deiner Schule und die GSO. Lade unter Optionen regelmäßig ein Backup herunter, damit keine Daten verloren gehen. Für Richtigkeit, Vollständigkeit und Verfügbarkeit der Daten und Berechnungen wird keine Haftung übernommen.</footer>
 <div class="toast" id="toast" hidden></div>
 
 <script>
