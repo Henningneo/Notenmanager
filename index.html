@@ -1210,7 +1210,7 @@ function osOptGeneral() {
   h += '<section class="card"><div class="card-head"><h2>Schuljahr und Halbjahr</h2></div><div class="grid" style="gap:14px">' +
     '<div class="form-row"><label class="field"><span>Ich bin in der</span><select id="o-year" data-action="os-year"><option value="0"' + (state.settings.currentHj < 2 ? " selected" : "") + ">Q" + L[0].split("/")[0] + '</option><option value="2"' + (state.settings.currentHj >= 2 ? " selected" : "") + ">Q" + L[2].split("/")[0] + "</option></select></label>" +
     '<div class="field"><span>Aktuelles Halbjahr</span><div style="padding:8px 0;font-weight:600">' + L[state.settings.currentHj] + "</div></div></div>" +
-    '<p class="muted small" style="margin:0">Das Halbjahr stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar) und wird beim Eintragen von Noten vorausgewählt. Nach den Sommerferien geht es von der Q' + L[0].split("/")[0] + " automatisch in die Q" + L[2].split("/")[0] + ".</p>" +
+    '<p class="muted small" style="margin:0">Das Halbjahr stellt sich nach dem Datum selbst ein (2. Halbjahr ab 15. Februar) und wird beim Eintragen von Noten vorausgewählt. Nach den Sommerferien geht es von der Q' + L[0].split("/")[0] + " automatisch in die Q" + L[2].split("/")[0] + ". Du bist noch in der Unter- oder Mittelstufe? Dann stell unter <a href=\"#optionen\" data-action=\"opt-sec\" data-k=\"modus\" style=\"color:var(--accent)\">Modus</a> auf „Unter- und Mittelstufe“ um.</p>" +
     (!state.subjects.some(x => x.grades.some(g => g.plan)) ? "" : '<label class="check"><input type="checkbox" id="o-plan" data-opt="includePlan"' + (state.settings.includePlan ? " checked" : "") + "> Prognose-Noten in alle Berechnungen einbeziehen</label>") +
     "</div></section>";
   return h;
