@@ -135,6 +135,8 @@ main { padding-block: 22px 60px; display: grid; gap: 22px; }
 .pt.b1 { background: var(--bad-soft); color: var(--bad); }
 .pt.out { background: transparent; border: 1.5px dashed var(--line); color: var(--muted); font-weight: 600; }
 .pt.plan { border-style: dashed; border-color: currentColor; }
+.pt.unsure { border-style: dashed; border-color: var(--warn); }
+.unsure-tag { color: var(--warn); font-weight: 600; }
 .pt.raw { font-weight: 600; }
 
 /* Tabelle */
@@ -754,6 +756,10 @@ function minPointsFor(note) {
 }
 function fmt(n, d) { if (n == null || isNaN(n)) return "–"; return n.toLocaleString("de-DE", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
 function band(p) { if (p == null) return ""; if (p >= 13) return "b5"; if (p >= 10) return "b4"; if (p >= 7) return "b3"; if (p >= 4) return "b2"; return "b1"; }
+// Knopf zum Markieren einer Note als unsicher (zählt trotzdem mit)
+function unsureBtn(action, sid, g) {
+  return '<button class="btn ghost sm" data-action="' + action + '" data-id="' + sid + '" data-g="' + g.id + '" title="' + (g.unsure ? "Note ist jetzt sicher" : "Note als unsicher markieren (zählt trotzdem mit)") + '">' + (g.unsure ? "Sicher" : "Unsicher") + "</button>";
+}
 function chip(p, extra, title) {
   return '<span class="pt ' + band(p) + " " + (extra || "") + '"' + (title ? ' title="' + esc(title) + '"' : "") + ">" + (p == null ? "–" : p) + "</span>";
 }
@@ -1076,6 +1082,7 @@ function viewSubject(s, c, L) {
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + '></label>' +
     '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
     '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional"></label>' +
+    '<label class="check" style="align-self:center"><input type="checkbox" id="g-unsure"> Note noch unsicher</label>' +
     '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
     '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
   // Halbjahre (nebeneinander)
@@ -1098,9 +1105,10 @@ function viewSubject(s, c, L) {
     if (req) h += '<div class="formula">' + req + "</div>";
     h += '<div class="grades">' + (gs.length ? gs.map(g => {
       const cat = CATS[g.cat] || CATS.sonstige;
-      return '<div class="grade">' + chip(g.points, g.plan ? "plan" : "") + '<div class="t"><b>' + cat.label + (g.plan ? " · Prognose" : "") + (cat.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
+      return '<div class="grade">' + chip(g.points, g.plan ? "plan" : g.unsure ? "unsure" : "") + '<div class="t"><b>' + cat.label + (g.plan ? " · Prognose" : "") + (g.unsure ? ' · <span class="unsure-tag">unsicher</span>' : "") + (cat.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
         (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
         '<div class="actions">' + (g.plan ? '<button class="btn ghost sm" data-action="toggle-plan" data-id="' + s.id + '" data-g="' + g.id + '" title="Alte Prognose-Note als echte Note übernehmen">Echt</button>' : "") +
+        unsureBtn("toggle-unsure", s.id, g) +
         '<button class="btn ghost sm danger" data-action="del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
     }).join("") : '<div class="muted small">Trag oben deine erste Note für ' + L[i] + " ein.</div>") + "</div>";
     // Bedarf
@@ -1586,6 +1594,7 @@ function uViewSubject(s) {
     '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="ug-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + "></label>" +
     '<label class="field"><span>Datum</span><input type="date" id="ug-date" value="' + today + '"></label>' +
     '<label class="field"><span>Notiz</span><input type="text" id="ug-note" placeholder="Thema, optional"></label>' +
+    '<label class="check" style="align-self:center"><input type="checkbox" id="ug-unsure"> Note noch unsicher</label>' +
     '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
     '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
   h += '<div class="hj-grid">';
@@ -1595,9 +1604,9 @@ function uViewSubject(s) {
     h += '<div class="card hjblock"><div class="hjblock-head"><h3>' + uHjName(i) + '</h3><div class="actions"><span class="muted small">' + (gs.length ? (uW(s) > 0 ? nSa + " SA · " : "") + nK + " kleine" : "noch keine Noten") + "</span></div></div>";
     h += '<div class="grades">' + (gs.length ? gs.map(g => {
       const c = uCat(g), v = uVal(g);
-      return '<div class="grade">' + uChip(v, g.n, g.plan ? "plan" : "", fmt(v, 2)) + '<div class="t"><b>' + c.label + (c.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
+      return '<div class="grade">' + uChip(v, g.n, g.plan ? "plan" : g.unsure ? "unsure" : "", fmt(v, 2)) + '<div class="t"><b>' + c.label + (g.unsure ? ' · <span class="unsure-tag">unsicher</span>' : "") + (c.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
         (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
-        '<div class="actions"><button class="btn ghost sm danger" data-action="u-del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
+        '<div class="actions">' + unsureBtn("u-toggle-unsure", s.id, g) + '<button class="btn ghost sm danger" data-action="u-del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
     }).join("") : '<div class="muted small">Trag oben deine erste Note für das ' + uHjName(i) + " ein.</div>") + "</div></div>";
   }
   h += "</div>";
@@ -1777,6 +1786,8 @@ document.addEventListener("click", e => {
       state.subjects.push(...picked); ui.showAdd = false; ui.selected = picked[0].id; ui.optSel = picked[0].id; saveUi();
       commit(); toast(picked.length === 1 ? "Fach angelegt" : picked.length + " Fächer angelegt"); return;
     }
+    case "toggle-unsure": { const g = s.grades.find(g => g.id === el.dataset.g); if (!g) return; g.unsure = !g.unsure; commit(); toast(g.unsure ? "Als unsicher markiert" : "Als sicher markiert"); return; }
+    case "u-toggle-unsure": { const us = uFind(el.dataset.id), g = us && us.grades.find(g => g.id === el.dataset.g); if (!g) return; g.unsure = !g.unsure; commit(); toast(g.unsure ? "Als unsicher markiert" : "Als sicher markiert"); return; }
     case "del-grade": s.grades = s.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return;
     case "toggle-plan": { const g = s.grades.find(g => g.id === el.dataset.g); g.plan = !g.plan; commit(); return; }
     case "ask-del": ui.confirm = "del-" + s.id; render(); return;
@@ -1914,7 +1925,7 @@ document.addEventListener("submit", e => {
   const cat = document.getElementById("ug-cat").value, w = parseFloat(document.getElementById("ug-w").value);
   s.grades.push({ id: uid(), hj: +document.getElementById("ug-hj").value, cat, n: document.getElementById("ug-n").value,
     weight: UCATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("ug-date").value || "",
-    note: document.getElementById("ug-note").value.trim(), plan: false });
+    note: document.getElementById("ug-note").value.trim(), plan: false, unsure: document.getElementById("ug-unsure").checked });
   ui.uLastCat = cat; ui.addGrade = null;
   commit(); toast("Note eingetragen");
 });
@@ -1937,7 +1948,7 @@ document.addEventListener("submit", e => {
   const w = parseFloat(document.getElementById("g-w").value);
   s.grades.push({ id: uid(), hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
     weight: CATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("g-date").value || "",
-    note: document.getElementById("g-note").value.trim(), plan: false });
+    note: document.getElementById("g-note").value.trim(), plan: false, unsure: document.getElementById("g-unsure").checked });
   ui.lastCat = cat; ui.addGrade = null;
   commit(); toast("Note eingetragen");
 });
