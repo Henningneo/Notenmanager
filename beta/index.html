@@ -761,6 +761,9 @@ function minPointsFor(note) {
 function fmt(n, d) { if (n == null || isNaN(n)) return "–"; return n.toLocaleString("de-DE", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
 function band(p) { if (p == null) return ""; if (p >= 13) return "b5"; if (p >= 10) return "b4"; if (p >= 7) return "b3"; if (p >= 4) return "b2"; return "b1"; }
 // Knopf zum Markieren einer Note als unsicher (zählt trotzdem mit)
+function editGradeBtn(sid, g) {
+  return '<button class="btn ghost sm icon-only" data-action="grade-edit" data-id="' + sid + '" data-g="' + g.id + '" title="Note bearbeiten" aria-label="Note bearbeiten">' + ICON_EDIT + "</button>";
+}
 function unsureBtn(action, sid, g) {
   return '<button class="btn ghost sm" data-action="' + action + '" data-id="' + sid + '" data-g="' + g.id + '" title="' + (g.unsure ? "Note ist jetzt sicher" : "Note als unsicher markieren (zählt trotzdem mit)") + '">' + (g.unsure ? "Sicher" : "Unsicher") + "</button>";
 }
@@ -1080,16 +1083,21 @@ function viewSubject(s, c, L) {
   const selCat = catOpts.some(([k]) => k === (ui.lastCat || "ex")) ? (ui.lastCat || "ex") : catOpts[0][0], wOff = CATS[selCat].group !== "klein";
   if (ui.addGrade !== s.id) {
     h += '<div class="actions" style="margin-top:4px"><button class="btn primary" data-action="grade-open" data-id="' + s.id + '">+ Note hinzufügen</button></div></div>';
-  } else h += '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
-    '<label class="field"><span>Halbjahr</span><select id="g-hj">' + L.map((l, i) => s.hj[i] ? '<option value="' + i + '"' + (i === cur ? " selected" : "") + ">" + l + "</option>" : "").join("") + "</select></label>" +
-    '<label class="field"><span>Art</span><select id="g-cat">' + catOpts.map(([k, v]) => '<option value="' + k + '"' + (k === selCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
-    '<label class="field"><span>Punkte</span><select id="g-pts">' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (p === 10 ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("") + "</select></label>" +
-    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + '></label>' +
-    '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + today + '"></label>' +
-    '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional"></label>' +
-    '<label class="check" style="align-self:center"><input type="checkbox" id="g-unsure"> Note noch unsicher</label>' +
-    '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
+  } else {
+    const eg = ui.editGrade ? s.grades.find(g => g.id === ui.editGrade) : null;
+    const fHj = eg ? eg.hj : cur, fCat = eg && catOpts.some(([k]) => k === eg.cat) ? eg.cat : selCat, fPts = eg ? eg.points : 10, fOff = CATS[fCat].group !== "klein";
+    const fCats = eg && !catOpts.some(([k]) => k === eg.cat) && CATS[eg.cat] ? catOpts.concat([[eg.cat, CATS[eg.cat]]]) : catOpts;
+    h += (eg ? '<h3 style="margin:4px 0 10px">Note bearbeiten</h3>' : "") + '<form class="form-row" id="grade-form" data-id="' + s.id + '">' +
+    '<label class="field"><span>Halbjahr</span><select id="g-hj">' + L.map((l, i) => s.hj[i] || i === fHj ? '<option value="' + i + '"' + (i === fHj ? " selected" : "") + ">" + l + "</option>" : "").join("") + "</select></label>" +
+    '<label class="field"><span>Art</span><select id="g-cat">' + fCats.map(([k, v]) => '<option value="' + k + '"' + (k === (eg ? eg.cat : fCat) ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Punkte</span><select id="g-pts">' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (p === fPts ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="g-w" min="0.25" step="0.25" value="' + (eg && eg.weight > 0 ? eg.weight : 1) + '"' + (fOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + '></label>' +
+    '<label class="field"><span>Datum</span><input type="date" id="g-date" value="' + (eg ? esc(eg.date || "") : today) + '"></label>' +
+    '<label class="field"><span>Notiz</span><input type="text" id="g-note" placeholder="Thema, optional" value="' + (eg ? esc(eg.note || "") : "") + '"></label>' +
+    '<label class="check" style="align-self:center"><input type="checkbox" id="g-unsure"' + (eg && eg.unsure ? " checked" : "") + "> Note noch unsicher</label>" +
+    '<div class="actions"><button class="btn primary" type="submit">' + (eg ? "Änderungen speichern" : "Note eintragen") + '</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
     '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
+  }
   // Halbjahre (nebeneinander)
   h += '<div class="hj-grid">';
   for (let i = 0; i < 4; i++) {
@@ -1113,7 +1121,7 @@ function viewSubject(s, c, L) {
       return '<div class="grade">' + chip(g.points, g.plan ? "plan" : g.unsure ? "unsure" : "") + '<div class="t"><b>' + cat.label + (g.plan ? " · Prognose" : "") + (g.unsure ? ' · <span class="unsure-tag">unsicher</span>' : "") + (cat.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
         (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
         '<div class="actions">' + (g.plan ? '<button class="btn ghost sm" data-action="toggle-plan" data-id="' + s.id + '" data-g="' + g.id + '" title="Alte Prognose-Note als echte Note übernehmen">Echt</button>' : "") +
-        unsureBtn("toggle-unsure", s.id, g) +
+        editGradeBtn(s.id, g) + unsureBtn("toggle-unsure", s.id, g) +
         '<button class="btn ghost sm danger" data-action="del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
     }).join("") : '<div class="muted small">Trag oben deine erste Note für ' + L[i] + " ein.</div>") + "</div>";
     // Bedarf
@@ -1593,16 +1601,22 @@ function uViewSubject(s) {
   const selCat = cats.some(([k]) => k === ui.uLastCat) ? ui.uLastCat : (uW(s) > 0 ? "sa" : "ex"), wOff = UCATS[selCat].group !== "klein" || false;
   if (ui.addGrade !== s.id) {
     h += '<div class="actions" style="margin-top:4px"><button class="btn primary" data-action="grade-open" data-id="' + s.id + '">+ Note hinzufügen</button></div></div>';
-  } else h += '<form class="form-row" id="u-grade-form" data-id="' + s.id + '">' +
-    '<label class="field"><span>Halbjahr</span><select id="ug-hj"><option value="0"' + (u.currentHj === 0 ? " selected" : "") + '>1. Halbjahr</option><option value="1"' + (u.currentHj === 1 ? " selected" : "") + ">2. Halbjahr</option></select></label>" +
-    '<label class="field"><span>Art</span><select id="ug-cat">' + cats.map(([k, v]) => '<option value="' + k + '"' + (k === selCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
-    '<label class="field"><span>Note</span><select id="ug-n">' + UNOTES.map(l => '<option value="' + l + '"' + (l === "3" ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
-    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="ug-w" min="0.25" step="0.25" value="1"' + (wOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + "></label>" +
-    '<label class="field"><span>Datum</span><input type="date" id="ug-date" value="' + today + '"></label>' +
-    '<label class="field"><span>Notiz</span><input type="text" id="ug-note" placeholder="Thema, optional"></label>' +
-    '<label class="check" style="align-self:center"><input type="checkbox" id="ug-unsure"> Note noch unsicher</label>' +
-    '<div class="actions"><button class="btn primary" type="submit">Note eintragen</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
+  } else {
+    const eg = ui.editGrade ? s.grades.find(g => g.id === ui.editGrade) : null;
+    const fHj = eg ? eg.hj : u.currentHj, fCat = eg ? eg.cat : selCat, fN = eg ? String(eg.n) : "3", fOff = (UCATS[fCat] || UCATS.ub).group !== "klein";
+    const fCats = eg && !cats.some(([k]) => k === eg.cat) && UCATS[eg.cat] ? cats.concat([[eg.cat, UCATS[eg.cat]]]) : cats;
+    const fNotes = UNOTES.includes(fN) ? UNOTES : UNOTES.concat([fN]);
+    h += (eg ? '<h3 style="margin:4px 0 10px">Note bearbeiten</h3>' : "") + '<form class="form-row" id="u-grade-form" data-id="' + s.id + '">' +
+    '<label class="field"><span>Halbjahr</span><select id="ug-hj"><option value="0"' + (fHj === 0 ? " selected" : "") + '>1. Halbjahr</option><option value="1"' + (fHj === 1 ? " selected" : "") + ">2. Halbjahr</option></select></label>" +
+    '<label class="field"><span>Art</span><select id="ug-cat">' + fCats.map(([k, v]) => '<option value="' + k + '"' + (k === fCat ? " selected" : "") + ">" + v.label + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Note</span><select id="ug-n">' + fNotes.map(l => '<option value="' + l + '"' + (l === fN ? " selected" : "") + ">" + l + "</option>").join("") + "</select></label>" +
+    '<label class="field"><span>Gewicht (kleine LN)</span><input type="number" id="ug-w" min="0.25" step="0.25" value="' + (eg && eg.weight > 0 ? eg.weight : 1) + '"' + (fOff ? ' disabled title="Zählt nur bei kleinen Leistungsnachweisen"' : "") + "></label>" +
+    '<label class="field"><span>Datum</span><input type="date" id="ug-date" value="' + (eg ? esc(eg.date || "") : today) + '"></label>' +
+    '<label class="field"><span>Notiz</span><input type="text" id="ug-note" placeholder="Thema, optional" value="' + (eg ? esc(eg.note || "") : "") + '"></label>' +
+    '<label class="check" style="align-self:center"><input type="checkbox" id="ug-unsure"' + (eg && eg.unsure ? " checked" : "") + "> Note noch unsicher</label>" +
+    '<div class="actions"><button class="btn primary" type="submit">' + (eg ? "Änderungen speichern" : "Note eintragen") + '</button><button class="btn" type="button" data-action="grade-close">Abbrechen</button></div></form>' +
     '<p class="muted small" style="margin:10px 0 0">Zum Ausprobieren von Noten gibt es den Prognosemodus in der Übersicht.</p></div>';
+  }
   h += '<div class="hj-grid">';
   for (let i = 0; i < 2; i++) {
     const gs = s.grades.filter(g => g.hj === i).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -1612,7 +1626,7 @@ function uViewSubject(s) {
       const c = uCat(g), v = uVal(g);
       return '<div class="grade">' + uChip(v, g.n, g.plan ? "plan" : g.unsure ? "unsure" : "", fmt(v, 2)) + '<div class="t"><b>' + c.label + (g.unsure ? ' · <span class="unsure-tag">unsicher</span>' : "") + (c.group === "klein" && g.weight && g.weight !== 1 ? " · ×" + fmt(g.weight, 2) : "") + "</b><div>" +
         (g.date ? new Date(g.date + "T12:00").toLocaleDateString("de-DE") : "") + (g.note ? " · " + esc(g.note) : "") + "</div></div>" +
-        '<div class="actions">' + unsureBtn("u-toggle-unsure", s.id, g) + '<button class="btn ghost sm danger" data-action="u-del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
+        '<div class="actions">' + editGradeBtn(s.id, g) + unsureBtn("u-toggle-unsure", s.id, g) + '<button class="btn ghost sm danger" data-action="u-del-grade" data-id="' + s.id + '" data-g="' + g.id + '" aria-label="Note löschen">✕</button></div></div>';
     }).join("") : '<div class="muted small">Trag oben deine erste Note für das ' + uHjName(i) + " ein.</div>") + "</div></div>";
   }
   h += "</div>";
@@ -1794,7 +1808,7 @@ document.addEventListener("click", e => {
     }
     case "toggle-unsure": { const g = s.grades.find(g => g.id === el.dataset.g); if (!g) return; g.unsure = !g.unsure; commit(); toast(g.unsure ? "Als unsicher markiert" : "Als sicher markiert"); return; }
     case "u-toggle-unsure": { const us = uFind(el.dataset.id), g = us && us.grades.find(g => g.id === el.dataset.g); if (!g) return; g.unsure = !g.unsure; commit(); toast(g.unsure ? "Als unsicher markiert" : "Als sicher markiert"); return; }
-    case "del-grade": s.grades = s.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return;
+    case "del-grade": if (ui.editGrade === el.dataset.g) { ui.editGrade = null; ui.addGrade = null; } s.grades = s.grades.filter(g => g.id !== el.dataset.g); commit(); toast("Note gelöscht"); return;
     case "toggle-plan": { const g = s.grades.find(g => g.id === el.dataset.g); g.plan = !g.plan; commit(); return; }
     case "ask-del": ui.confirm = "del-" + s.id; render(); return;
     case "ask-reset": ui.confirm = "reset"; render(); return;
@@ -1884,8 +1898,9 @@ document.addEventListener("click", e => {
       legacy = null; writeLS(LS_LEGACY_DONE, "1");
       commit(); toast("Bisherige Noten übernommen"); return;
     }
-    case "grade-open": ui.addGrade = el.dataset.id; render(); return;
-    case "grade-close": ui.addGrade = null; render(); return;
+    case "grade-open": ui.addGrade = el.dataset.id; ui.editGrade = null; render(); return;
+    case "grade-close": ui.addGrade = null; ui.editGrade = null; render(); return;
+    case "grade-edit": ui.addGrade = el.dataset.id; ui.editGrade = el.dataset.g; render(); { const f = document.getElementById("grade-form") || document.getElementById("u-grade-form"); if (f) f.scrollIntoView({ behavior: "smooth", block: "center" }); } return;
     case "mc-toggle": if (!matchMedia("(max-width: 640px)").matches) return; ui.mcOpen = Object.assign({}, ui.mcOpen, { [el.dataset.k]: !(ui.mcOpen && ui.mcOpen[el.dataset.k]) }); render(); return;
     case "forecast-start": startForecast(); return;
     case "forecast-end": endForecast(); return;
@@ -1931,11 +1946,13 @@ document.addEventListener("submit", e => {
   const s = uFind(e.target.dataset.id);
   if (!s) return;
   const cat = document.getElementById("ug-cat").value, w = parseFloat(document.getElementById("ug-w").value);
-  s.grades.push({ id: uid(), hj: +document.getElementById("ug-hj").value, cat, n: document.getElementById("ug-n").value,
+  const vals = { hj: +document.getElementById("ug-hj").value, cat, n: document.getElementById("ug-n").value,
     weight: UCATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("ug-date").value || "",
-    note: document.getElementById("ug-note").value.trim(), plan: false, unsure: document.getElementById("ug-unsure").checked });
-  ui.uLastCat = cat; ui.addGrade = null;
-  commit(); toast("Note eingetragen");
+    note: document.getElementById("ug-note").value.trim(), unsure: document.getElementById("ug-unsure").checked };
+  const eg = ui.editGrade ? s.grades.find(g => g.id === ui.editGrade) : null;
+  if (eg) Object.assign(eg, vals); else { s.grades.push(Object.assign({ id: uid(), plan: false }, vals)); ui.uLastCat = cat; }
+  ui.addGrade = null; ui.editGrade = null;
+  commit(); toast(eg ? "Note geändert" : "Note eingetragen");
 });
 document.addEventListener("submit", async e => {
   if (e.target.id !== "code-change-form") return;
@@ -1954,11 +1971,13 @@ document.addEventListener("submit", e => {
   const s = findS(e.target.dataset.id);
   const cat = document.getElementById("g-cat").value;
   const w = parseFloat(document.getElementById("g-w").value);
-  s.grades.push({ id: uid(), hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
+  const vals = { hj: +document.getElementById("g-hj").value, cat, points: +document.getElementById("g-pts").value,
     weight: CATS[cat].group === "klein" && w > 0 ? w : 1, date: document.getElementById("g-date").value || "",
-    note: document.getElementById("g-note").value.trim(), plan: false, unsure: document.getElementById("g-unsure").checked });
-  ui.lastCat = cat; ui.addGrade = null;
-  commit(); toast("Note eingetragen");
+    note: document.getElementById("g-note").value.trim(), unsure: document.getElementById("g-unsure").checked };
+  const eg = ui.editGrade ? s.grades.find(g => g.id === ui.editGrade) : null;
+  if (eg) Object.assign(eg, vals); else { s.grades.push(Object.assign({ id: uid(), plan: false }, vals)); ui.lastCat = cat; }
+  ui.addGrade = null; ui.editGrade = null;
+  commit(); toast(eg ? "Note geändert" : "Note eingetragen");
 });
 document.addEventListener("change", e => {
   const el = e.target;
