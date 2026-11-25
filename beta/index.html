@@ -1133,7 +1133,16 @@ function viewSubject(s, c, L) {
       Array.from({ length: 16 }, (_, p) => 15 - p).map(p => '<option value="' + p + '"' + (s.override[i] === p ? " selected" : "") + ">" + p + " Punkte</option>").join("") + "</select></label></div>";
   }
   h += "</div>";
+  if (s.group === "seminar") h += semGradesCard(c, "f");
   return h + "</div>";
+}
+// Seminararbeit und Präsentation: dieselben Daten (state.seminar) im Tab Abitur und beim W-Seminar unter Fächer & Noten
+function semGradesCard(c, sfx) {
+  const opts = v => '<option value="">noch offen</option>' + Array.from({ length: 16 }, (_, i) => 15 - i).map(p => '<option value="' + p + '"' + (v === p ? " selected" : "") + ">" + p + " (" + NOTE[p] + ")</option>").join("");
+  return '<div class="card"><div class="card-head"><h3>Seminararbeit</h3><span class="muted small">zählt wie 2 Halbjahresleistungen · auch im Tab Abitur</span></div>' +
+    '<div class="form-row"><label class="field"><span>Schriftliche Arbeit</span><select id="sem-arbeit-' + sfx + '" data-action="sem" data-k="arbeit">' + opts(state.seminar.arbeit) + "</select></label>" +
+    '<label class="field"><span>Präsentation + Prüfungsgespräch</span><select id="sem-praes-' + sfx + '" data-action="sem" data-k="praes">' + opts(state.seminar.praes) + "</select></label></div>" +
+    '<p class="formula num" style="margin:12px 0 0">(3 × Arbeit + Präsentation) ÷ 2 = <b>' + (c.sem ? c.sem.pts : "–") + " / 30</b>" + (c.sem && c.sem.est ? " (Schätzung, ein Teil fehlt)" : "") + "</p></div>";
 }
 // Einstellungen eines Fachs (im Tab Optionen)
 function viewSubjectSettings(s, L) {
