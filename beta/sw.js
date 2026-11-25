@@ -3,7 +3,7 @@
      Nur ohne Verbindung wird die zuletzt geladene Fassung aus dem Cache genommen.
    - Symbole, Manifest, Schriften und die Firebase-Bibliotheken (feste Versionsnummer) werden zwischengespeichert.
    - Anfragen an Firebase selbst (Datenbank, Anmeldung) laufen nie über diesen Service Worker. */
-const VERSION = "nmbeta-v9";
+const VERSION = "nmbeta-v10";
 const CACHE = VERSION;
 const CORE = [
   "./",

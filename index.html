@@ -1850,7 +1850,7 @@ document.addEventListener("click", e => {
     case "admin-create": {
       if (ui.adminBusy || !ui.adminVault) return;
       const note = (document.getElementById("admin-new-note").value || "").trim();
-      const name = (document.getElementById("admin-new-name").value || "").trim();
+      const name = { first: (document.getElementById("admin-new-first").value || "").trim(), last: (document.getElementById("admin-new-last").value || "").trim() };
       ui.adminBusy = true; render();
       createCode(name, note).then(e => toast("Neuer Code für " + (e.name || "Profil " + e.nr) + ": " + fmtCode(e.code)), err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
       return;
@@ -1996,7 +1996,7 @@ document.addEventListener("change", e => {
     stage(el);
     return;
   }
-  if (el.dataset.action === "admin-name") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) { en.name = el.value.trim().slice(0, 40); en.nameDirty = true; } return; }
+  if (el.dataset.action === "admin-first" || el.dataset.action === "admin-last") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) { const p = splitName(en); if (el.dataset.action === "admin-first") p.first = el.value; else p.last = el.value; setNameParts(en, p.first, p.last); en.nameDirty = true; } return; }
   if (el.dataset.action === "admin-note") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) en.note = el.value.trim(); return; }
   if (el.dataset.action === "admin-block") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en && en.nr !== ADMIN_NR) en.blocked = el.checked; render(); return; }
   if (el.dataset.action === "lf") { setLf(el.value || null); stage(el); return; }
@@ -2402,7 +2402,7 @@ async function loadAdminVault() {
       entries = [];
       for (let i = 0; i < 20; i++) entries.push({ nr: i + 1, code: s.slice(i * 12, i * 12 + 12), name: "", note: i === 0 ? "Admin" : "", created: null, blocked: false });
     }
-    for (const e of entries) { e.h = await sha256hex("nm-code:" + e.code); e.docId = await profileDocId(e.code); e.blocked = codeList.blocked.includes(e.h); if (e.name == null) e.name = ""; }
+    for (const e of entries) { e.h = await sha256hex("nm-code:" + e.code); e.docId = await profileDocId(e.code); e.blocked = codeList.blocked.includes(e.h); if (e.name == null) e.name = ""; if (e.first == null && e.last == null) { const p = splitName(e); e.first = p.first; e.last = p.last; } }
     entries = entries.filter(e => !codeList.deleted.includes(e.h));
   } catch (e) { entries = null; ui.adminError = "Die Codeliste konnte nicht entschlüsselt werden."; }
   if (session !== my) return;
@@ -2430,7 +2430,7 @@ async function saveCodeList(keyOverride) {
   if (!d) throw new Error("Keine Verbindung zur Datenbank. Versuch es später nochmal.");
   await getAuthApi();
   if (!isFbAdmin()) throw new Error("Melde dich zuerst oben im Admin-Bereich mit deinem Admin-Konto an.");
-  const list = ui.adminVault.map(({ nr, code, name, note, created, blocked }) => ({ nr, code, name: name || "", note: note || "", created: created || null, blocked: !!blocked }));
+  const list = ui.adminVault.map(({ nr, code, name, first, last, note, created, blocked }) => Object.assign({ nr, code, name: name || "", note: note || "", created: created || null, blocked: !!blocked }, first != null || last != null ? { first: first || "", last: last || "" } : {}));
   const adminKey = keyOverride || session.key;
   const vault = await encryptObj(adminKey, list);
   const blocked = ui.adminVault.filter(e => e.blocked && e.nr !== ADMIN_NR).map(e => e.h);
@@ -2473,9 +2473,19 @@ async function deleteCode(nr) {
   if (ui.adminSeen) delete ui.adminSeen[nr];
   return entry;
 }
+// Vor- und Nachname getrennt; „name“ bleibt der zusammengesetzte Anzeigename (oben rechts, verschlüsselt für die Person)
+function joinName(first, last) { return [first, last].map(x => String(x || "").trim()).filter(Boolean).join(" ").slice(0, 40); }
+function splitName(e) {
+  if (e.first != null || e.last != null) return { first: e.first || "", last: e.last || "" };
+  const n = String(e.name || "").trim(), i = n.lastIndexOf(" ");
+  return i > 0 ? { first: n.slice(0, i), last: n.slice(i + 1) } : { first: n, last: "" };
+}
+function setNameParts(e, first, last) { e.first = String(first || "").trim().slice(0, 30); e.last = String(last || "").trim().slice(0, 30); e.name = joinName(e.first, e.last); }
+function nameCells(e) { const p = splitName(e); return p.first || p.last ? "<td><b>" + esc(p.first) + "</b></td><td><b>" + esc(p.last) + "</b></td>" : '<td><span class="muted">Profil ' + e.nr + '</span></td><td><span class="muted">–</span></td>'; }
 async function createCode(name, note) {
   const code = randomCodeStr();
-  const entry = { nr: Math.max(20, ...ui.adminVault.map(e => e.nr)) + 1, code, name, nameDirty: true, note, created: Date.now(), blocked: false, h: await sha256hex("nm-code:" + code), docId: await profileDocId(code) };
+  const entry = { nr: Math.max(20, ...ui.adminVault.map(e => e.nr)) + 1, code, name: "", nameDirty: true, note, created: Date.now(), blocked: false, h: await sha256hex("nm-code:" + code), docId: await profileDocId(code) };
+  if (name && typeof name === "object") setNameParts(entry, name.first, name.last); else entry.name = String(name || "").slice(0, 40);
   ui.adminVault.push(entry);
   try { await saveCodeList(); ui.adminNew = entry.nr; return entry; }
   catch (err) { ui.adminVault.pop(); throw err; }
@@ -2541,7 +2551,7 @@ async function restoreProfiles(list) {
 }
 // Codes-Backup: lesbare Liste mit Code, Name, Notiz und Status (ohne Noten)
 function exportCodesBackup() {
-  const codes = ui.adminVault.slice().sort((a, b) => a.nr - b.nr).map(e => ({ profil: e.nr, name: e.name || "", code: fmtCode(e.code), notiz: e.note || "", status: e.nr !== ADMIN_NR && e.blocked ? "gesperrt" : "aktiv", erstellt: e.created || null }));
+  const codes = ui.adminVault.slice().sort((a, b) => a.nr - b.nr).map(e => ({ profil: e.nr, name: e.name || "", vorname: splitName(e).first, nachname: splitName(e).last, code: fmtCode(e.code), notiz: e.note || "", status: e.nr !== ADMIN_NR && e.blocked ? "gesperrt" : "aktiv", erstellt: e.created || null }));
   const file = { app: "notenmanager", kind: "codes", v: 1, createdAt: Date.now(), hinweis: "Codes-Backup des Notenmanagers. Getrennt vom Daten-Backup aufbewahren: Codes und Daten zusammen machen alle Noten lesbar.", codes };
   downloadFile("notenmanager-codes-backup-" + fileStamp() + ".json", JSON.stringify(file, null, 1));
   markBackup("codes");
@@ -2559,7 +2569,8 @@ async function parseCodesBackup(txt) {
     if (nr <= 20 && CODE_HASHES[nr - 1] !== h && CODE_HASHES.includes(h)) throw new Error("Der Code von Profil " + nr + " passt nicht zu diesem Notenmanager.");
     if (nr > 20 && CODE_HASHES.includes(h)) throw new Error("Das Codes-Backup ist beschädigt (Profil " + nr + ").");
     seen.add(nr);
-    entries.push({ nr, code, h, name: String(c.name || "").slice(0, 40), note: String(c.notiz || "").slice(0, 200), created: +c.erstellt || null, blocked: nr !== ADMIN_NR && c.status === "gesperrt" });
+    const nm = c.vorname != null || c.nachname != null ? { first: String(c.vorname || "").slice(0, 30), last: String(c.nachname || "").slice(0, 30) } : splitName({ name: String(c.name || "") });
+    entries.push({ nr, code, h, name: joinName(nm.first, nm.last) || String(c.name || "").slice(0, 40), first: nm.first, last: nm.last, note: String(c.notiz || "").slice(0, 200), created: +c.erstellt || null, blocked: nr !== ADMIN_NR && c.status === "gesperrt" });
   }
   if (!seen.has(ADMIN_NR)) throw new Error("Im Codes-Backup fehlt der Admin-Code (Profil 1).");
   return { createdAt: +x.createdAt || 0, entries: entries.sort((a, b) => a.nr - b.nr) };
@@ -2623,8 +2634,8 @@ function viewBackups() {
     const added = bc.entries.filter(e => !cur.has(e.nr)).length, removed = ui.adminVault.filter(e => !bc.entries.some(x => x.nr === e.nr)).length;
     h += '<div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px"><div class="card-head" style="margin-bottom:8px"><div><b>' + esc(bc.file) + '</b><br><span class="muted small">Backup vom ' + fmtStamp(bc.createdAt) + " · " + bc.entries.length + " Codes · " + added + " kommen hinzu · " + removed + " fallen weg</span></div>" +
       '<button class="btn ghost sm" data-action="bk-codes-close"' + (busy ? " disabled" : "") + ">Schließen</button></div>" +
-      '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Name</th><th>Code</th><th>Notiz</th><th>Status</th></tr></thead><tbody>';
-    for (const e of bc.entries) h += '<tr><td class="num"><b>' + e.nr + "</b>" + (cur.has(e.nr) ? "" : ' <span class="badge">neu</span>') + "</td><td>" + (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + e.nr + "</span>") + '</td><td><span style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + "</span></td><td>" + (e.note ? esc(e.note) : '<span class="muted">–</span>') + "</td><td>" + (e.blocked ? "gesperrt" : "aktiv") + "</td></tr>";
+      '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Vorname</th><th>Nachname</th><th>Code</th><th>Notiz</th><th>Status</th></tr></thead><tbody>';
+    for (const e of bc.entries) h += '<tr><td class="num"><b>' + e.nr + "</b>" + (cur.has(e.nr) ? "" : ' <span class="badge">neu</span>') + "</td>" + nameCells(e) + '<td><span style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + "</span></td><td>" + (e.note ? esc(e.note) : '<span class="muted">–</span>') + "</td><td>" + (e.blocked ? "gesperrt" : "aktiv") + "</td></tr>";
     h += "</tbody></table></div>";
     h += !isFbAdmin()
       ? '<p class="small" style="margin:10px 0 0;color:var(--warn)">Zum Wiederherstellen melde dich oben mit deinem Admin-Konto an. Ansehen geht auch so.</p>'
@@ -2656,15 +2667,17 @@ function viewAdmin() {
       '<button class="btn primary" type="submit"' + (ui.adminAuthBusy ? " disabled" : "") + '>' + (ui.adminAuthBusy ? "Prüfe …" : "Als Admin anmelden") + '</button></form>' +
       (ui.adminAuthError ? '<p class="small" style="color:var(--bad);margin:8px 0 0">' + esc(ui.adminAuthError) + '</p>' : "") + '</section>';
   h += '<section class="card"><div class="card-head"><div><h2>Neuen Code erstellen</h2><span class="muted small">Der neue Code funktioniert sofort, mit eigenem, leerem Profil</span></div></div>' +
-    '<div class="form-row"><label class="field"><span>Name (oben rechts sichtbar)</span><input type="text" id="admin-new-name" placeholder="z. B. Max" maxlength="40"></label>' +
+    '<div class="form-row"><label class="field"><span>Vorname</span><input type="text" id="admin-new-first" placeholder="z. B. Max" maxlength="30"></label>' +
+    '<label class="field"><span>Nachname</span><input type="text" id="admin-new-last" placeholder="z. B. Mustermann" maxlength="30"></label>' +
     '<label class="field"><span>Notiz (nur für dich)</span><input type="text" id="admin-new-note" placeholder="z. B. Bruder, Q12" maxlength="80"></label>' +
     '<button class="btn primary" data-action="admin-create"' + (ed || ui.adminBusy ? " disabled" : "") + ">" + (ui.adminBusy ? "Erstelle …" : "+ Code erstellen") + "</button></div></section>";
   h += '<section class="card' + (ed ? " editing" : "") + '"><div class="card-head"><div><h2>Anmeldecodes</h2><span class="muted small">' + ui.adminVault.length + " Codes · " + active + " aktiv · Notizen sieht nur der Admin</span></div>" + editBar("admin") + "</div>" +
-    '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Name</th><th>Code</th><th>Notiz</th><th>Status</th><th>Zuletzt gespeichert</th>' + (ed ? "" : "<th></th>") + "</tr></thead><tbody>";
+    '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Vorname</th><th>Nachname</th><th>Code</th><th>Notiz</th><th>Status</th><th>Zuletzt gespeichert</th>' + (ed ? "" : "<th></th>") + "</tr></thead><tbody>";
   for (const e of ui.adminVault.slice().sort((a, b) => a.nr - b.nr)) {
     const isAdm = e.nr === ADMIN_NR, askDel = ui.adminConfirmDel === e.nr;
     h += "<tr" + (askDel ? ' style="background:var(--bad-soft)"' : ui.adminNew === e.nr ? ' style="background:var(--accent-soft)"' : "") + '><td class="num"><b>' + e.nr + "</b>" + (isAdm ? ' <span class="badge lf">Admin</span>' : "") + "</td>" +
-      "<td>" + (ed ? '<input type="text" id="admin-name-' + e.nr + '" data-action="admin-name" data-nr="' + e.nr + '" value="' + esc(e.name) + '" maxlength="40" placeholder="Profil ' + e.nr + '" style="min-width:130px">' : (e.name ? "<b>" + esc(e.name) + "</b>" : '<span class="muted">Profil ' + e.nr + "</span>")) + "</td>" +
+      (ed ? (() => { const p = splitName(e); return '<td><input type="text" id="admin-first-' + e.nr + '" data-action="admin-first" data-nr="' + e.nr + '" value="' + esc(p.first) + '" maxlength="30" placeholder="Vorname" style="min-width:110px"></td>' +
+          '<td><input type="text" id="admin-last-' + e.nr + '" data-action="admin-last" data-nr="' + e.nr + '" value="' + esc(p.last) + '" maxlength="30" placeholder="Nachname" style="min-width:110px"></td>'; })() : nameCells(e)) +
       '<td><span class="num" style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + '</span> <button class="btn ghost sm" data-action="copy-code" data-code="' + fmtCode(e.code) + '" aria-label="Code kopieren">Kopieren</button></td>' +
       "<td>" + (ed ? '<input type="text" id="admin-note-' + e.nr + '" data-action="admin-note" data-nr="' + e.nr + '" value="' + esc(e.note) + '" maxlength="80" style="min-width:150px">' : (e.note ? esc(e.note) : '<span class="muted">–</span>')) + "</td>" +
       "<td>" + (e.moved ? '<span class="badge" style="background:var(--warn-soft);color:var(--warn)" title="Die Person hat ihren Code geändert, bevor der Admin-Schlüssel eingerichtet war. Der angezeigte Code gilt nicht mehr.">Code geändert, neuer Code unbekannt</span> ' : "") + (isAdm ? '<span class="muted small">immer aktiv</span>' : ed ? '<label class="check"><input type="checkbox" id="admin-block-' + e.nr + '" data-action="admin-block" data-nr="' + e.nr + '"' + (e.blocked ? " checked" : "") + "> gesperrt</label>" : (e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>')) + "</td>" +
@@ -2673,7 +2686,7 @@ function viewAdmin() {
         ? '<div class="actions" style="flex-wrap:nowrap"><span class="small" style="white-space:nowrap">Mit allen Noten endgültig löschen?</span><button class="btn danger solid sm" data-action="admin-delete" data-nr="' + e.nr + '"' + (ui.adminBusy ? " disabled" : "") + '>Ja, löschen</button><button class="btn sm" data-action="admin-delete-cancel">Abbrechen</button></div>'
         : '<button class="btn ghost sm danger" data-action="admin-delete-ask" data-nr="' + e.nr + '"' + (ui.adminBusy || ui.edit ? " disabled" : "") + ">" + ICON_TRASH + " Löschen</button>") + "</td>") + "</tr>";
   }
-  h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Der Name steht beim jeweiligen Konto oben rechts statt „Profil XY“. Er wird mit dem Code der Person verschlüsselt und ist ab der nächsten Anmeldung sichtbar. Ein gesperrter Code kann sich nicht mehr anmelden, seine Noten bleiben aber erhalten. Löschen entfernt den Code und die gespeicherten Noten endgültig; das lässt sich nicht rückgängig machen. Als Admin kannst du die Noten anderer Profile nicht lesen.</p></section>';
+  h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Vor- und Nachname stehen beim jeweiligen Konto zusammen oben rechts statt „Profil XY“. Der Name wird mit dem Code der Person verschlüsselt und ist ab der nächsten Anmeldung sichtbar. Ein gesperrter Code kann sich nicht mehr anmelden, seine Noten bleiben aber erhalten. Löschen entfernt den Code und die gespeicherten Noten endgültig; das lässt sich nicht rückgängig machen. Als Admin kannst du die Noten anderer Profile nicht lesen.</p></section>';
   return h + viewBackups();
 }
 
