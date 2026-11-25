@@ -225,6 +225,11 @@ textarea { min-height: 120px; font-family: ui-monospace, Consolas, monospace; fo
   .subj-list.collapsed .subj-item { display: none; }
   .subj-list.collapsed .card-head { margin-bottom: 4px !important; }
 }
+/* Admin: Konten einzeln bearbeiten */
+.acc-item .sub { display: block; font-size: .78rem; font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-item[hidden] { display: none !important; }
+.acc-code { font-family: ui-monospace, Consolas, monospace; font-weight: 700; letter-spacing: .06em; }
+.danger-zone { border-color: var(--bad-soft); }
 /* Fächer & Noten: Handy erst Liste, dann Fach mit Zurück-Knopf; PC nebeneinander */
 .subj-detail { display: grid; gap: 12px; min-width: 0; }
 .subj-back { display: none; justify-self: start; }
@@ -330,7 +335,7 @@ nav.tabs .t-short { display: none; }
   <p>Alle Berechnungen ohne Gewähr. Der Notenmanager ist ein privates Hilfsmittel und kann Fehler enthalten. Maßgeblich sind allein die Angaben deiner Schule und die GSO. Lade unter Optionen regelmäßig ein Backup herunter, damit keine Daten verloren gehen. Für Richtigkeit, Vollständigkeit und Verfügbarkeit der Daten und Berechnungen wird keine Haftung übernommen.</p>
   <details><summary>Datenschutz</summary>
     <p>Gespeichert werden deine Fächer und Noten sowie der Name, den der Admin deinem Code gibt. Beides wird schon auf deinem Gerät mit deinem Anmeldecode verschlüsselt und nur verschlüsselt übertragen. Lesen kann es nur, wer deinen Code kennt: du und der Admin, der die Codes vergibt. Der Betreiber der Datenbank sieht nur verschlüsselte Daten. Zusätzlich liegt eine verschlüsselte Kopie im Speicher deines Browsers.</p>
-    <p>Für die Liste der letzten Anmeldungen (Optionen, Sicherheit) werden Zeitpunkt und Gerätetyp gespeichert, z. B. „Android, Chrome“, ebenfalls mit deinem Code verschlüsselt. IP-Adressen werden nicht gespeichert. Änderst du deinen Code, bleibt ein Vermerk vom alten auf den neuen Code (nur als Prüfsumme). Der neue Code wird zusätzlich so verschlüsselt hinterlegt, dass nur der Admin ihn lesen kann, damit er dein Profil weiter verwalten kann.</p>
+    <p>Für die Liste der letzten Anmeldungen (Optionen, Sicherheit) werden Zeitpunkt und Gerätetyp gespeichert, z. B. „Android, Chrome“, ebenfalls mit deinem Code verschlüsselt. Der Admin, der deinen Code vergeben hat, kann diese Liste in der Kontoverwaltung sehen. IP-Adressen werden nicht gespeichert. Änderst du deinen Code, bleibt ein Vermerk vom alten auf den neuen Code (nur als Prüfsumme). Der neue Code wird zusätzlich so verschlüsselt hinterlegt, dass nur der Admin ihn lesen kann, damit er dein Profil weiter verwalten kann.</p>
     <p>Die verschlüsselten Daten liegen in Google Firebase (Cloud Firestore, Rechenzentren in der EU). Die Seite wird über GitHub Pages ausgeliefert, die Firebase-Bibliotheken kommen von Google. Dabei verarbeiten GitHub und Google technisch bedingt deine IP-Adresse und Browserdaten. Die Schriftarten liegen direkt auf dieser Seite. Es gibt keine Werbung, kein Tracking und keine Weitergabe an Dritte.</p>
     <p>Wenn deine Daten gelöscht werden sollen, wende dich an die Person, von der du deinen Code hast. Dann werden Code und Profil entfernt. Mit der Nutzung nimmst du diese Hinweise zur Kenntnis.</p>
   </details>
@@ -809,7 +814,7 @@ function render() {
   if (focusId) { const el = document.getElementById(focusId); if (el && el.tagName !== "BUTTON") el.focus(); }
 }
 
-const BETA_ADMIN_NOTE = '<section class="card"><p class="small" style="margin:0"><b>Hinweis zur Beta:</b> Die Codeliste ist dieselbe wie in der normalen Version. Neue, gesperrte oder gelöschte Codes gelten also auch dort. Gelöscht werden in der Beta nur die Beta-Testdaten eines Profils.</p></section>';
+const BETA_ADMIN_NOTE = '<section class="card"><p class="small" style="margin:0"><b>Hinweis zur Beta:</b> Die Codeliste ist dieselbe wie in der normalen Version. Neue, gesperrte oder gelöschte Codes gelten also auch dort. Löschen entfernt den Code also auch dort. Neu in der Beta: Jedes Konto lässt sich einzeln öffnen und bearbeiten.</p></section>';
 function updateModeUi() {
   const u = isUms();
   document.getElementById("app-title").textContent = u ? "Notenmanager" : "Notenmanager Oberstufe";
@@ -1869,7 +1874,26 @@ document.addEventListener("click", e => {
       const note = (document.getElementById("admin-new-note").value || "").trim();
       const name = { first: (document.getElementById("admin-new-first").value || "").trim(), last: (document.getElementById("admin-new-last").value || "").trim() };
       ui.adminBusy = true; render();
-      createCode(name, note).then(e => toast("Neuer Code für " + (e.name || "Profil " + e.nr) + ": " + fmtCode(e.code)), err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      createCode(name, note).then(e => { ui.accSel = e.nr; ui.accDraft = null; ui.accShowCode = true; ui.adminConfirmDel = null; toast("Neuer Code für " + (e.name || "Profil " + e.nr) + " erstellt"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      return;
+    }
+    case "acc-open": if (ui.accSel !== +el.dataset.nr) { ui.accSel = +el.dataset.nr; ui.accDraft = null; ui.accShowCode = false; ui.adminConfirmDel = null; } render(); if (window.matchMedia("(max-width: 860px)").matches) { const k = document.getElementById("konten"); if (k) k.scrollIntoView(); } return;
+    case "acc-back": ui.accSel = null; ui.accDraft = null; ui.adminConfirmDel = null; render(); { const k = document.getElementById("konten"); if (k) k.scrollIntoView(); } return;
+    case "acc-code-toggle": ui.accShowCode = !ui.accShowCode; render(); return;
+    case "acc-log-refresh": { const e = ui.adminVault && ui.adminVault.find(x => x.nr === ui.accSel); if (e) loadAccLog(e, true); return; }
+    case "acc-save": {
+      if (ui.adminBusy || !ui.adminVault) return;
+      const nr = +el.dataset.nr, v = id => (document.getElementById(id) || {}).value || "";
+      ui.adminBusy = true; render();
+      saveAccount(nr, { first: v("acc-first"), last: v("acc-last"), note: v("acc-note") }).then(() => { ui.accDraft = null; toast("Konto gespeichert"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      return;
+    }
+    case "acc-reset": ui.accDraft = null; render(); return;
+    case "acc-block": {
+      if (ui.adminBusy || !ui.adminVault) return;
+      const nr = +el.dataset.nr, on = el.dataset.on === "1";
+      ui.adminBusy = true; render();
+      setAccountBlocked(nr, on).then(e => toast((e.name || "Profil " + e.nr) + (on ? " ist gesperrt" : " ist wieder aktiv")), err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
       return;
     }
     case "admin-delete-ask": ui.adminConfirmDel = +el.dataset.nr; ui.adminNew = null; render(); return;
@@ -1878,7 +1902,7 @@ document.addEventListener("click", e => {
       if (ui.adminBusy) return;
       const nr = +el.dataset.nr;
       ui.adminBusy = true; render();
-      deleteCode(nr).then(e => { ui.adminConfirmDel = null; if (e) toast((e.name || "Profil " + e.nr) + " wurde gelöscht"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
+      deleteCode(nr).then(e => { ui.adminConfirmDel = null; if (e && ui.accSel === nr) { ui.accSel = null; ui.accDraft = null; } if (e) toast((e.name || "Profil " + e.nr) + " wurde gelöscht"); }, err => toast(err.message)).finally(() => { ui.adminBusy = false; render(); });
       return;
     }
     case "copy-code": {
@@ -2013,9 +2037,7 @@ document.addEventListener("change", e => {
     stage(el);
     return;
   }
-  if (el.dataset.action === "admin-first" || el.dataset.action === "admin-last") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) { const p = splitName(en); if (el.dataset.action === "admin-first") p.first = el.value; else p.last = el.value; setNameParts(en, p.first, p.last); en.nameDirty = true; } return; }
-  if (el.dataset.action === "admin-note") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en) en.note = el.value.trim(); return; }
-  if (el.dataset.action === "admin-block") { const en = ui.adminVault && ui.adminVault.find(x => x.nr === +el.dataset.nr); if (en && en.nr !== ADMIN_NR) en.blocked = el.checked; render(); return; }
+  if (el.dataset.action === "acc-field") { accKeepDraft(); return; }
   if (el.dataset.action === "lf") { setLf(el.value || null); stage(el); return; }
   if (el.dataset.action === "target") { ui.target = parseFloat(el.value); render(); return; }
   if (el.dataset.action === "override") { const s = findS(el.dataset.id); s.override[+el.dataset.h] = el.value === "" ? null : +el.value; commit(); return; }
@@ -2034,7 +2056,14 @@ document.addEventListener("change", e => {
     stage(el);
   }
 });
-window.addEventListener("hashchange", () => { ui.confirm = null; if (currentTab() !== "optionen") ui.optDetail = false; if (currentTab() !== "faecher") ui.subjDetail = false; render(); window.scrollTo(0, 0); });
+// Kontenliste filtern, ohne neu aufzubauen (Fokus bleibt im Suchfeld)
+document.addEventListener("input", e => {
+  if (e.target.id !== "acc-filter") return;
+  ui.accFilter = e.target.value;
+  const q = ui.accFilter.trim().toLowerCase();
+  document.querySelectorAll(".acc-item").forEach(b => { b.hidden = !!q && !b.dataset.q.includes(q); });
+});
+window.addEventListener("hashchange", () => { ui.confirm = null; if (currentTab() !== "admin") { ui.accSel = null; ui.accDraft = null; ui.adminConfirmDel = null; } if (currentTab() !== "optionen") ui.optDetail = false; if (currentTab() !== "faecher") ui.subjDetail = false; render(); window.scrollTo(0, 0); });
 
 async function copyFromLive() {
   if (forecast) { toast("Verlasse zuerst den Prognosemodus."); return; }
@@ -2511,6 +2540,51 @@ async function deleteCode(nr) {
   if (ui.adminSeen) delete ui.adminSeen[nr];
   return entry;
 }
+// Admin: ein einzelnes Konto ändern (Name, Notiz) und sofort speichern
+async function saveAccount(nr, f) {
+  const e = ui.adminVault.find(x => x.nr === nr);
+  if (!e) throw new Error("Dieses Konto gibt es nicht mehr.");
+  const prev = { first: e.first, last: e.last, name: e.name, note: e.note, nameDirty: e.nameDirty };
+  setNameParts(e, f.first, f.last);
+  if (e.name !== (prev.name || "")) e.nameDirty = true;
+  e.note = String(f.note || "").trim().slice(0, 80);
+  try { await saveCodeList(); }
+  catch (err) { Object.assign(e, prev); if (prev.first === undefined) delete e.first; if (prev.last === undefined) delete e.last; if (!prev.nameDirty) delete e.nameDirty; throw err; }
+  return e;
+}
+async function setAccountBlocked(nr, on) {
+  const e = ui.adminVault.find(x => x.nr === nr);
+  if (!e || nr === ADMIN_NR) throw new Error("Dieses Konto kann nicht gesperrt werden.");
+  const prev = !!e.blocked;
+  e.blocked = !!on;
+  try { await saveCodeList(); } catch (err) { e.blocked = prev; throw err; }
+  return e;
+}
+// Anmeldeliste eines Kontos: der Admin kennt den Code und kann sie deshalb entschlüsseln
+async function loadAccLog(e, force) {
+  const cur = ui.accLog;
+  if (cur && cur.nr === e.nr && cur.code === e.code && (cur.busy || (!force && Date.now() - cur.at < 60000))) return;
+  const st = { nr: e.nr, code: e.code, busy: true, at: Date.now(), entries: cur && cur.nr === e.nr ? cur.entries : null, err: false };
+  ui.accLog = st;
+  if (force) render();
+  let entries;
+  try {
+    const x = await lookupDoc("nm/" + (await sha256hex("nm-log:" + e.code)).slice(0, 40));
+    if (x === undefined) entries = undefined;
+    else if (!x || !x.ct) entries = [];
+    else { const o = await decryptObj(await deriveKey(e.code), x); entries = Array.isArray(o.entries) ? o.entries : []; }
+  } catch (err) { entries = []; }
+  if (ui.accLog !== st) return;
+  st.busy = false; st.at = Date.now();
+  if (entries === undefined) st.err = true; else st.entries = entries;
+  if (currentTab() === "admin" && ui.accSel === e.nr) render();
+}
+// Eingaben im Kontodialog vor jedem Neuaufbau merken, damit nichts verloren geht
+function accKeepDraft() {
+  const f = document.getElementById("acc-first");
+  if (!f || +f.dataset.nr !== ui.accSel) return;
+  ui.accDraft = { nr: ui.accSel, first: f.value, last: (document.getElementById("acc-last") || {}).value || "", note: (document.getElementById("acc-note") || {}).value || "" };
+}
 // Vor- und Nachname getrennt; „name“ bleibt der zusammengesetzte Anzeigename (oben rechts, verschlüsselt für die Person)
 function joinName(first, last) { return [first, last].map(x => String(x || "").trim()).filter(Boolean).join(" ").slice(0, 40); }
 function splitName(e) {
@@ -2685,6 +2759,72 @@ function viewBackups() {
   }
   return h + "</section>";
 }
+const ACC_BACK = '<button class="btn sm subj-back" data-action="acc-back">‹ Alle Konten</button>';
+function accName(e) { return e.name ? esc(e.name) : '<span class="muted">Profil ' + e.nr + "</span>"; }
+function accStatus(e) {
+  if (e.nr === ADMIN_NR) return '<span class="badge lf">Admin</span>';
+  return e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>';
+}
+function accDate(t) { return new Date(t).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }); }
+// Konten: links die Liste, rechts das gewählte Konto (Handy: erst Liste, dann Konto mit Zurück-Knopf)
+function viewAccounts(seen) {
+  accKeepDraft();
+  const list = ui.adminVault.slice().sort((a, b) => a.nr - b.nr);
+  const sel = list.find(e => e.nr === ui.accSel) || null;
+  if (!sel) { ui.accSel = null; ui.accDraft = null; }
+  const active = list.filter(e => !e.blocked).length, q = (ui.accFilter || "").trim().toLowerCase();
+  let h = '<section class="subj-layout pick' + (sel ? " detail" : "") + '" id="konten"><div class="card subj-list"><div class="card-head" style="margin:4px 6px 6px"><div><h2>Konten</h2><span class="muted small">' + list.length + " Konten · " + active + " aktiv</span></div></div>";
+  if (list.length > 8) h += '<input type="text" id="acc-filter" placeholder="Suchen: Name, Notiz oder Nr." value="' + esc(ui.accFilter || "") + '" autocomplete="off" aria-label="Konten durchsuchen">';
+  for (const e of list) {
+    const key = [e.nr, e.name, e.note].join(" ").toLowerCase();
+    h += '<button class="subj-item acc-item" data-action="acc-open" data-nr="' + e.nr + '" data-q="' + esc(key) + '" aria-current="' + (sel === e) + '"' + (q && !key.includes(q) ? " hidden" : "") + '><span class="n">' + accName(e) +
+      '<span class="sub">Nr. ' + e.nr + (e.note ? " · " + esc(e.note) : "") + "</span></span>" + accStatus(e) + "</button>";
+  }
+  h += '</div><div class="subj-detail">' + (sel ? ACC_BACK + viewAccount(sel, seen)
+    : '<section class="card"><h2 style="margin:0 0 6px">Konto auswählen</h2><p class="muted small" style="margin:0">Wähle links ein Konto aus. Dort änderst du Name und Notiz, sperrst oder löschst das Konto und siehst die letzten Anmeldungen. Die Noten anderer Profile kannst du als Admin nicht lesen.</p></section>') + "</div></section>";
+  return h;
+}
+function viewAccount(e, seen) {
+  const isAdm = e.nr === ADMIN_NR, fb = isFbAdmin(), busy = !!ui.adminBusy, dis = !fb || busy ? " disabled" : "";
+  const p = splitName(e), d = ui.accDraft && ui.accDraft.nr === e.nr ? ui.accDraft : { first: p.first, last: p.last, note: e.note || "" };
+  const dirty = d.first.trim() !== p.first || d.last.trim() !== p.last || d.note.trim() !== (e.note || "");
+  if (!e.moved) setTimeout(() => loadAccLog(e), 0);
+  const lg = ui.accLog && ui.accLog.nr === e.nr && ui.accLog.code === e.code ? ui.accLog : null;
+  const log = lg && lg.entries ? lg.entries.slice().sort((a, b) => b.t - a.t) : null, last = log && log.length ? log[0] : null;
+  let h = "";
+  if (!fb) h += '<p class="small" style="margin:0;color:var(--warn)">Ansehen geht so. Zum Ändern melde dich oben mit deinem Admin-Konto an.</p>';
+  h += '<section class="card"><div class="card-head"><div><h2>' + accName(e) + " " + accStatus(e) + '</h2><span class="muted small">Profil ' + e.nr + (e.created ? " · erstellt am " + new Date(e.created).toLocaleDateString("de-DE") : "") + "</span></div></div>" +
+    '<dl class="kv"><div><dt>Zuletzt gespeichert</dt><dd>' + (seen[e.nr] ? accDate(seen[e.nr]) : '<span class="muted">noch nie</span>') + "</dd></div>" +
+    "<div><dt>Letzte Anmeldung</dt><dd>" + (last ? accDate(last.t) + ' <span class="muted small">' + esc(last.l || "") + "</span>" : '<span class="muted">' + (e.moved ? "unbekannt" : !lg || (lg.busy && !log) ? "wird geladen …" : lg.err && !log ? "ohne Verbindung unbekannt" : "noch keine") + "</span>") + "</dd></div></dl></section>";
+  // Name und Notiz
+  h += '<section class="card"><div class="card-head"><div><h2>Name und Notiz</h2><span class="muted small">Der Name steht bei der Person oben rechts statt „Profil ' + e.nr + '“ (ab der nächsten Anmeldung). Die Notiz sieht nur der Admin.</span></div></div>' +
+    '<div class="form-row"><label class="field"><span>Vorname</span><input type="text" id="acc-first" data-action="acc-field" data-nr="' + e.nr + '" value="' + esc(d.first) + '" maxlength="30" placeholder="z. B. Max"' + (fb ? "" : " disabled") + "></label>" +
+    '<label class="field"><span>Nachname</span><input type="text" id="acc-last" data-action="acc-field" value="' + esc(d.last) + '" maxlength="30" placeholder="z. B. Mustermann"' + (fb ? "" : " disabled") + "></label></div>" +
+    '<label class="field" style="margin-top:10px"><span>Notiz (nur für dich)</span><input type="text" id="acc-note" data-action="acc-field" value="' + esc(d.note) + '" maxlength="80" placeholder="z. B. Bruder, Q12"' + (fb ? "" : " disabled") + "></label>" +
+    '<div class="actions" style="margin-top:12px"><button class="btn primary" data-action="acc-save" data-nr="' + e.nr + '"' + dis + ">" + ICON_SAVE + (busy ? " Speichere …" : " Speichern") + "</button>" + (dirty ? '<button class="btn" data-action="acc-reset"' + (busy ? " disabled" : "") + ">Verwerfen</button>" : "") + "</div></section>";
+  // Zugang: Status und Code
+  h += '<section class="card"><div class="card-head"><div><h2>Zugang</h2><span class="muted small">' + (isAdm ? "Das Admin-Konto ist immer aktiv." : e.blocked ? "Gesperrt: Mit diesem Code kann sich niemand anmelden. Die Noten bleiben erhalten." : "Aktiv. Eine Sperre greift beim nächsten Öffnen oder Anmelden, die Noten bleiben erhalten.") + "</span></div>" +
+    (isAdm ? "" : '<button class="btn sm' + (e.blocked ? " primary" : " danger") + '" data-action="acc-block" data-nr="' + e.nr + '" data-on="' + (e.blocked ? "0" : "1") + '"' + dis + ">" + (e.blocked ? "Entsperren" : "Sperren") + "</button>") + "</div>" +
+    (e.moved ? '<p class="small" style="margin:0 0 10px;color:var(--warn)">Die Person hat ihren Code geändert, bevor der Admin-Schlüssel eingerichtet war. Der hinterlegte Code gilt nicht mehr, der neue ist unbekannt.</p>' : "") +
+    '<div class="actions"><span class="small muted">Anmeldecode</span><span class="acc-code">' + (ui.accShowCode ? fmtCode(e.code) : "••••-••••-••••") + '</span><button class="btn ghost sm" data-action="acc-code-toggle">' + (ui.accShowCode ? "Verbergen" : "Anzeigen") + '</button><button class="btn ghost sm" data-action="copy-code" data-code="' + fmtCode(e.code) + '">Kopieren</button></div></section>';
+  // Letzte Anmeldungen
+  h += '<section class="card"><div class="card-head"><div><h2>Letzte Anmeldungen</h2><span class="muted small">Zeitpunkt und Gerätetyp, verschlüsselt mit dem Code der Person</span></div>' + (e.moved ? "" : '<button class="btn sm" data-action="acc-log-refresh"' + (lg && lg.busy ? " disabled" : "") + ">" + (lg && lg.busy ? "Lädt …" : "Aktualisieren") + "</button>") + "</div>";
+  if (e.moved) h += '<p class="muted small" style="margin:0">Nicht verfügbar, weil der aktuelle Code unbekannt ist.</p>';
+  else if (!log) h += '<p class="muted small" style="margin:0">' + (lg && lg.err ? "Ohne Verbindung nicht verfügbar." : "Wird geladen …") + "</p>";
+  else if (!log.length) h += '<p class="muted small" style="margin:0">Noch keine Anmeldungen aufgezeichnet.</p>';
+  else {
+    h += '<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Zeitpunkt</th><th>Gerät</th><th>Art</th></tr></thead><tbody>';
+    for (const x of log.slice(0, 15)) h += '<tr><td class="small" style="white-space:nowrap">' + fmtDT(x.t) + "</td><td>" + esc(x.l || "unbekannt") + '</td><td class="small">' + esc(LOG_KIND[x.k] || x.k || "") + "</td></tr>";
+    h += "</tbody></table></div>" + (log.length > 15 ? '<p class="muted small" style="margin:8px 0 0">' + (log.length - 15) + " ältere Einträge ausgeblendet.</p>" : "");
+  }
+  h += "</section>";
+  // Löschen
+  if (!isAdm) h += '<section class="card danger-zone"><div class="card-head"><div><h2>Konto löschen</h2><span class="muted small">Entfernt den Code und alle gespeicherten Noten endgültig. Das lässt sich nicht rückgängig machen.</span></div></div>' +
+    (ui.adminConfirmDel === e.nr
+      ? '<div class="actions"><span class="small"><b>' + accName(e) + "</b> mit allen Noten endgültig löschen?</span><button class=\"btn danger solid sm\" data-action=\"admin-delete\" data-nr=\"" + e.nr + '"' + dis + '>Ja, löschen</button><button class="btn sm" data-action="admin-delete-cancel">Abbrechen</button></div>'
+      : '<button class="btn danger sm" data-action="admin-delete-ask" data-nr="' + e.nr + '"' + dis + ">" + ICON_TRASH + " Konto löschen</button>") + "</section>";
+  return h;
+}
 function viewAdmin() {
   if (!session || !session.admin) return "";
   if (!ui.adminVault) {
@@ -2692,7 +2832,6 @@ function viewAdmin() {
     return '<section class="card"><p class="muted" style="margin:0">' + esc(ui.adminError || "Codeliste wird geladen …") + "</p></section>";
   }
   const ed = editing("admin"), seen = ui.adminSeen || {};
-  const active = ui.adminVault.filter(e => !e.blocked).length;
   const lb = lastBackups(), dueDays = t => !t || Date.now() - t > 14 * 86400000;
   let h = dueDays(lb.daten) || dueDays(lb.codes)
     ? '<div class="fc-bar" style="position:static"><span class="small"><b>Backup fällig:</b> Daten ' + (lb.daten ? agoText(lb.daten) : "noch nie") + " gesichert, Codes " + (lb.codes ? agoText(lb.codes) : "noch nie") + ' gesichert (auf diesem Gerät).</span><button class="btn sm" data-action="bk-scroll">Zu den Backups</button></div>'
@@ -2709,22 +2848,7 @@ function viewAdmin() {
     '<label class="field"><span>Nachname</span><input type="text" id="admin-new-last" placeholder="z. B. Mustermann" maxlength="30"></label>' +
     '<label class="field"><span>Notiz (nur für dich)</span><input type="text" id="admin-new-note" placeholder="z. B. Bruder, Q12" maxlength="80"></label>' +
     '<button class="btn primary" data-action="admin-create"' + (ed || ui.adminBusy ? " disabled" : "") + ">" + (ui.adminBusy ? "Erstelle …" : "+ Code erstellen") + "</button></div></section>";
-  h += '<section class="card' + (ed ? " editing" : "") + '"><div class="card-head"><div><h2>Anmeldecodes</h2><span class="muted small">' + ui.adminVault.length + " Codes · " + active + " aktiv · Notizen sieht nur der Admin</span></div>" + editBar("admin") + "</div>" +
-    '<div class="tbl-wrap"><table><thead><tr><th>Profil</th><th>Vorname</th><th>Nachname</th><th>Code</th><th>Notiz</th><th>Status</th><th>Zuletzt gespeichert</th>' + (ed ? "" : "<th></th>") + "</tr></thead><tbody>";
-  for (const e of ui.adminVault.slice().sort((a, b) => a.nr - b.nr)) {
-    const isAdm = e.nr === ADMIN_NR, askDel = ui.adminConfirmDel === e.nr;
-    h += "<tr" + (askDel ? ' style="background:var(--bad-soft)"' : ui.adminNew === e.nr ? ' style="background:var(--accent-soft)"' : "") + '><td class="num"><b>' + e.nr + "</b>" + (isAdm ? ' <span class="badge lf">Admin</span>' : "") + "</td>" +
-      (ed ? (() => { const p = splitName(e); return '<td><input type="text" id="admin-first-' + e.nr + '" data-action="admin-first" data-nr="' + e.nr + '" value="' + esc(p.first) + '" maxlength="30" placeholder="Vorname" style="min-width:110px"></td>' +
-          '<td><input type="text" id="admin-last-' + e.nr + '" data-action="admin-last" data-nr="' + e.nr + '" value="' + esc(p.last) + '" maxlength="30" placeholder="Nachname" style="min-width:110px"></td>'; })() : nameCells(e)) +
-      '<td><span class="num" style="font-family:ui-monospace,Consolas,monospace;font-weight:600;white-space:nowrap">' + fmtCode(e.code) + '</span> <button class="btn ghost sm" data-action="copy-code" data-code="' + fmtCode(e.code) + '" aria-label="Code kopieren">Kopieren</button></td>' +
-      "<td>" + (ed ? '<input type="text" id="admin-note-' + e.nr + '" data-action="admin-note" data-nr="' + e.nr + '" value="' + esc(e.note) + '" maxlength="80" style="min-width:150px">' : (e.note ? esc(e.note) : '<span class="muted">–</span>')) + "</td>" +
-      "<td>" + (e.moved ? '<span class="badge" style="background:var(--warn-soft);color:var(--warn)" title="Die Person hat ihren Code geändert, bevor der Admin-Schlüssel eingerichtet war. Der angezeigte Code gilt nicht mehr.">Code geändert, neuer Code unbekannt</span> ' : "") + (isAdm ? '<span class="muted small">immer aktiv</span>' : ed ? '<label class="check"><input type="checkbox" id="admin-block-' + e.nr + '" data-action="admin-block" data-nr="' + e.nr + '"' + (e.blocked ? " checked" : "") + "> gesperrt</label>" : (e.blocked ? '<span class="badge" style="background:var(--bad-soft);color:var(--bad)">gesperrt</span>' : '<span class="badge" style="background:var(--good-soft);color:var(--good)">aktiv</span>')) + "</td>" +
-      '<td class="small">' + (seen[e.nr] ? new Date(seen[e.nr]).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : '<span class="muted">noch nie</span>') + "</td>" +
-      (ed ? "" : "<td>" + (isAdm ? "" : askDel
-        ? '<div class="actions" style="flex-wrap:nowrap"><span class="small" style="white-space:nowrap">Mit allen Noten endgültig löschen?</span><button class="btn danger solid sm" data-action="admin-delete" data-nr="' + e.nr + '"' + (ui.adminBusy ? " disabled" : "") + '>Ja, löschen</button><button class="btn sm" data-action="admin-delete-cancel">Abbrechen</button></div>'
-        : '<button class="btn ghost sm danger" data-action="admin-delete-ask" data-nr="' + e.nr + '"' + (ui.adminBusy || ui.edit ? " disabled" : "") + ">" + ICON_TRASH + " Löschen</button>") + "</td>") + "</tr>";
-  }
-  h += '</tbody></table></div><p class="muted small" style="margin:12px 0 0">Vor- und Nachname stehen beim jeweiligen Konto zusammen oben rechts statt „Profil XY“. Der Name wird mit dem Code der Person verschlüsselt und ist ab der nächsten Anmeldung sichtbar. Ein gesperrter Code kann sich nicht mehr anmelden, seine Noten bleiben aber erhalten. Löschen entfernt den Code und die gespeicherten Noten endgültig; das lässt sich nicht rückgängig machen. Als Admin kannst du die Noten anderer Profile nicht lesen.</p></section>';
+  h += viewAccounts(seen);
   return h + viewBackups();
 }
 
